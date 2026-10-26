@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horse Racing RPG</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏇</text></svg>">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <div class="logo-area">
+                <i class="fa-solid fa-horse-head"></i>
+                <div>
+                    <h1>HORSE RACING RPG</h1>
+                    <div class="time-badge" id="ingame-time">Senin, 1 Januari 2000 | 08:00 WIB</div>
+                </div>
+            </div>
+            <div class="currency-badge">
+                <i class="fa-solid fa-wallet"></i>
+                <span id="player-gold">Rp 10.000.000</span>
+            </div>
+        </header>
+
+        <nav>
+            <button class="nav-btn active" onclick="switchTab('stable')"><i class="fa-solid fa-warehouse"></i> Kandang</button>
+            <button class="nav-btn" onclick="switchTab('shop')"><i class="fa-solid fa-store"></i> Toko Kuda</button>
+            <button class="nav-btn" onclick="switchTab('training')"><i class="fa-solid fa-dumbbell"></i> Latihan</button>
+            <button class="nav-btn" onclick="switchTab('breed')"><i class="fa-solid fa-dna"></i> Breeding</button>
+            <button class="nav-btn" onclick="switchTab('exhibition')"><i class="fa-solid fa-flag"></i> Balap Eksibisi</button>
+            <button class="nav-btn" onclick="switchTab('league')"><i class="fa-solid fa-trophy"></i> Liga Musim</button>
+        </nav>
+
+        <main>
+            <!-- STABLE TAB -->
+            <div id="tab-stable" class="tab-content active">
+                <div class="stable-layout">
+                    <div>
+                        <h3 style="margin-bottom: 12px;">Kuda Milikmu</h3>
+                        <div id="my-horses-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom: 12px;">Detail & Kondisi Kuda</h3>
+                        <div id="horse-detail-panel" class="horse-card">
+                            <p style="color:var(--text-muted)">Pilih kuda untuk melihat detail status.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SHOP TAB -->
+            <div id="tab-shop" class="tab-content">
+                <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h2>🛒 Pasar Kuda Hari Ini</h2>
+                        <p style="color:var(--text-muted); font-size:13px;">Toko menyediakan 5 kuda acak. Stok ganti otomatis tiap 3 hari In-Game.</p>
+                    </div>
+                    <button class="btn" onclick="refreshShop()"><i class="fa-solid fa-rotate"></i> Refresh Toko (Rp 500.000)</button>
+                </div>
+                <div id="shop-list" class="shop-compact-grid"></div>
+            </div>
+
+            <!-- TRAINING TAB -->
+            <div id="tab-training" class="tab-content">
+                <div id="training-panel"></div>
+            </div>
+
+            <!-- BREEDING TAB -->
+            <div id="tab-breed" class="tab-content">
+                <div class="stable-layout">
+                    <div>
+                        <h3>Pilih Indukan</h3>
+                        <div style="margin-top:10px; display:flex; flex-direction:column; gap:10px;">
+                            <div>
+                                <label style="font-size:13px; color:var(--text-muted)">Kuda Jantan (Sire):</label>
+                                <select id="breed-sire-select" class="form-control" style="margin-top:4px;"></select>
+                            </div>
+                            <div>
+                                <label style="font-size:13px; color:var(--text-muted)">Kuda Betina (Dam):</label>
+                                <select id="breed-dam-select" class="form-control" style="margin-top:4px;"></select>
+                            </div>
+                            <button class="btn btn-blue" style="margin-top:10px; justify-content:center;" onclick="triggerBreeding()">
+                                <i class="fa-solid fa-heart"></i> Kawinkan (Biaya: Rp 1.500.000)
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Status Kehamilan</h3>
+                        <div id="pregnancy-log-panel" style="background:var(--bg-card-alt); padding:15px; border-radius:10px; border:1px solid var(--panel-border); min-height:150px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXHIBITION RACE TAB -->
+            <div id="tab-exhibition" class="tab-content">
+                <div id="exhibition-lobby-view" class="race-lobby">
+                    <div>
+                        <h2>🚩 Balapan Eksibisi</h2>
+                        <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">Balapan bebas untuk menguji kecepatan kuda.</p>
+
+                        <h4 style="font-size:14px;">1. Pilih Jarak Lintasan</h4>
+                        <div style="display:flex; gap:8px; margin:8px 0 15px 0;">
+                            <button class="dist-btn active" onclick="setExhibitionDistance(750, this)">750m Sprint</button>
+                            <button class="dist-btn" onclick="setExhibitionDistance(1300, this)">1300m Medium</button>
+                            <button class="dist-btn" onclick="setExhibitionDistance(2200, this)">2200m Maraton</button>
+                        </div>
+
+                        <h4 style="font-size:14px;">2. Pilih Kategori Divisi</h4>
+                        <div style="display:flex; flex-direction:column; gap:8px; margin:8px 0 15px 0;">
+                            <button class="league-btn active" onclick="selectExhibitionLeague('beginner', this)">Liga Pemula <small style="opacity:0.8;">(Max OVR: 350 | Fee: Rp 100k)</small></button>
+                            <button class="league-btn" onclick="selectExhibitionLeague('amateur', this)">Liga Amatir <small style="opacity:0.8;">(Max OVR: 850 | Fee: Rp 500k)</small></button>
+                            <button class="league-btn" onclick="selectExhibitionLeague('pro', this)">Liga Profesional <small style="opacity:0.8;">(Max OVR: 1550 | Fee: Rp 1.5M)</small></button>
+                            <button class="league-btn" onclick="selectExhibitionLeague('championship', this)">Kejuaraan Nasional <small style="opacity:0.8;">(Max OVR: 2450 | Fee: Rp 5M)</small></button>
+                        </div>
+
+                        <h4 style="font-size:14px;">3. Pilih Kuda Pacu</h4>
+                        <select id="exhibition-horse-select" class="form-control" style="margin:8px 0 15px 0;"></select>
+
+                        <button class="btn btn-blue" style="width:100%; padding:12px; justify-content:center;" onclick="startExhibitionRace()">
+                            <i class="fa-solid fa-play"></i> Mulai Balap Eksibisi
+                        </button>
+                    </div>
+
+                    <div>
+                        <h3>Daftar Lawan Arena</h3>
+                        <div id="exhibition-opponents-container" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEAGUE RACE TAB -->
+            <div id="tab-league" class="tab-content">
+                <div id="league-lobby-view" class="race-lobby">
+                    <div>
+                        <h2>🏆 Musim Liga Resmi</h2>
+                        <p style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">Matchday resmi diselenggarakan setiap Tanggal 5, 15, dan 25.</p>
+
+                        <div style="margin-bottom:12px; font-size:13px;">
+                            Status Pendaftaran: <strong id="league-reg-status" style="color:#ef4444;">Belum Terdaftar</strong>
+                        </div>
+
+                        <button class="btn btn-blue" onclick="registerForLeague()" style="width:100%; margin-bottom:15px;">
+                            Daftar Musim Liga Sekarang (Gratis)
+                        </button>
+
+                        <h4 style="font-size:14px;">1. Pilih Jarak Match</h4>
+                        <div style="display:flex; gap:8px; margin:8px 0 15px 0;">
+                            <button class="dist-btn active" onclick="setLeagueDistance(750, this)">750m Sprint</button>
+                            <button class="dist-btn" onclick="setLeagueDistance(1300, this)">1300m Medium</button>
+                            <button class="dist-btn" onclick="setLeagueDistance(2200, this)">2200m Maraton</button>
+                        </div>
+
+                        <h4 style="font-size:14px;">2. Pilih Divisi Klasemen</h4>
+                        <div style="display:flex; flex-direction:column; gap:8px; margin:8px 0 15px 0;">
+                            <button class="league-btn active" onclick="selectLeagueDivision('beginner', this)">Divisi Pemula <small style="opacity:0.8;">(Max OVR: 350 | Fee: Rp 100k)</small></button>
+                            <button class="league-btn" onclick="selectLeagueDivision('amateur', this)">Divisi Amatir <small style="opacity:0.8;">(Max OVR: 850 | Fee: Rp 500k)</small></button>
+                            <button class="league-btn" onclick="selectLeagueDivision('pro', this)">Divisi Profesional <small style="opacity:0.8;">(Max OVR: 1550 | Fee: Rp 1.5M)</small></button>
+                            <button class="league-btn" onclick="selectLeagueDivision('championship', this)">Divisi Utama <small style="opacity:0.8;">(Max OVR: 2450 | Fee: Rp 5M)</small></button>
+                        </div>
+
+                        <h4 style="font-size:14px;">3. Pilih Kuda Pacu</h4>
+                        <select id="league-horse-select" class="form-control" style="margin:8px 0 15px 0;"></select>
+
+                        <button class="btn" onclick="startLeagueRace()" style="width:100%; padding:12px; justify-content:center;">
+                            <i class="fa-solid fa-trophy"></i> Tanding Match Liga Resmi
+                        </button>
+                    </div>
+
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <h3>Klasemen Musim Liga</h3>
+                        </div>
+                        <table class="standings-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Nama Kuda</th>
+                                    <th>OVR</th>
+                                    <th style="text-align:right;">Poin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="league-standings-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIVE RACE VIEW -->
+            <div id="live-race-view" style="display: none;">
+                <h2 style="margin-bottom:6px;"><i class="fa-solid fa-flag-checkered"></i> Live Arena Balapan</h2>
+                <div class="race-arena-container">
+                    <div id="track-board" class="track-board">
+                        <div class="finish-line-pattern"></div>
+                    </div>
+                    <h4 style="margin-bottom:8px;"><i class="fa-solid fa-bullhorn"></i> Live Commentator Log</h4>
+                    <div id="race-log-box" class="race-log-box"></div>
+                </div>
+            </div>
+
+            <!-- MODAL PODIUM -->
+            <div id="result-modal" class="modal-overlay">
+                <div class="modal-card">
+                    <h2>🏆 Hasil Balapan</h2>
+                    <div style="margin:20px 0; text-align:left; display:flex; flex-direction:column; gap:8px;">
+                        <div style="background:var(--bg-card-alt); padding:10px; border-radius:8px;">🥇 Juara 1: <strong id="p1-name">-</strong> (<span id="p1-time">-</span>)</div>
+                        <div style="background:var(--bg-card-alt); padding:10px; border-radius:8px;">🥈 Juara 2: <strong id="p2-name">-</strong> (<span id="p2-time">-</span>)</div>
+                        <div style="background:var(--bg-card-alt); padding:10px; border-radius:8px;">🥉 Juara 3: <strong id="p3-name">-</strong> (<span id="p3-time">-</span>)</div>
+                    </div>
+                    <button class="btn" style="width:100%; justify-content:center;" onclick="closeResultModal()">Kembali ke Lobi</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="configliga.js"></script>
+    <script src="configpertandingan.js"></script>
+    <script src="confignama_kuda.js"></script>
+    <script src="configkomentator.js"></script>
+    <script src="main.js"></script>
+    <script src="tabskandang.js"></script>
+    <script src="tabstoko.js"></script>
+    <script src="tabslatihan.js"></script>
+    <script src="tabsbreeding.js"></script>
+    <script src="tabssimulasi_balap.js"></script>
+    <script src="tabseksibisi.js"></script>
+    <script src="tabsliga.js"></script>
+</body>
+</html>
