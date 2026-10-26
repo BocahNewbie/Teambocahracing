@@ -16,12 +16,14 @@ const gameState = {
     strategy: 'balanced', // push, balanced, conserve
     boxRequested: false,
     carState: {
-      progress: 0, // Menggunakan progress indeks lintasan (0 ke waypoints.length)
+      progress: 0,
       speed: 0,
       tire: 100,
       heat: 30,
+      totalDistance: 0
     },
-    opponents: []
+    opponents: [],
+    finalResults: []
   }
 };
 
@@ -355,7 +357,13 @@ function startLiveRace() {
     progress: 0,
     speed: activeCar.speed,
     tire: 100,
-    heat: 30
+    heat: 30,
+    totalDistance: 0,
+    isPlayer: true,
+    driverName: gameState.drivers[0] ? gameState.drivers[0].name : 'Kamu',
+    teamName: 'Tim Kamu',
+    color: '#00f0ff',
+    number: 1
   };
 
   const allRivalCars = [];
@@ -370,8 +378,10 @@ function startLiveRace() {
       driverName: gameState.drivers[1] ? gameState.drivers[1].shortName : 'Rekan Tim',
       carModel: teammateCar.name,
       progress: -gridOffset,
+      totalDistance: -gridOffset,
       speed: teammateCar.speed,
-      color: '#3b82f6'
+      color: '#3b82f6',
+      isPlayer: false
     });
   }
 
@@ -389,8 +399,10 @@ function startLiveRace() {
         driverName: carItem.driver ? carItem.driver.shortName : 'Driver',
         carModel: carItem.model,
         progress: -gridOffset,
+        totalDistance: -gridOffset,
         speed: carItem.topSpeed * (0.85 + Math.random() * 0.15),
-        color: team.liveryColor
+        color: team.liveryColor,
+        isPlayer: false
       });
     });
   });
@@ -411,6 +423,7 @@ function raceLoop() {
   updatePhysics();
   renderRaceCanvas();
   updateTelemetryUI();
+  updateRaceStandingsUI();
 
   if (gameState.race.currentLap > gameState.race.laps) {
     endRace();
@@ -446,9 +459,9 @@ function updatePhysics() {
   car.speed = activeCar.speed * speedMult * (0.6 + 0.4 * gripFactor);
   car.tire = Math.max(0, car.tire - tireDep);
 
-  // Pergerakan berdasarkan kecepatan & jumlah waypoint
   const deltaProgress = (car.speed / 15000) * (totalWaypoints / 8);
   car.progress += deltaProgress;
+  car.totalDistance += deltaProgress;
 
   if (car.progress >= totalWaypoints) {
     car.progress -= totalWaypoints;
@@ -464,7 +477,9 @@ function updatePhysics() {
   }
 
   gameState.race.opponents.forEach(opp => {
-    opp.progress += (opp.speed / 15000) * (totalWaypoints / 8);
+    const oppDelta = (opp.speed / 15000) * (totalWaypoints / 8);
+    opp.progress += oppDelta;
+    opp.totalDistance += oppDelta;
     if (opp.progress >= totalWaypoints) opp.progress -= totalWaypoints;
   });
 }
@@ -477,9 +492,9 @@ function renderRaceCanvas() {
   const trackData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA[trackKey] : null;
   if (!trackData) return;
 
-  // Render Mobil Utama Player (Titik Cyan)
+  // Render Mobil Utama Player
   const pPos = getPositionOnTrack(trackData.waypoints, gameState.race.carState.progress);
-  ctx.fillStyle = '#00f0ff';
+  ctx.fillStyle = gameState.race.carState.color;
   ctx.beginPath();
   ctx.arc(pPos.x, pPos.y, 10, 0, Math.PI * 2);
   ctx.fill();
@@ -507,19 +522,76 @@ function updateTelemetryUI() {
   if (lapsEl) lapsEl.innerText = `${Math.min(gameState.race.currentLap, gameState.race.laps)} / ${gameState.race.laps}`;
 }
 
+// --- RACE STANDINGS & GRID SYSTEM ---
+function updateRaceStandingsUI() {
+  const standingsContainer = document.getElementById('race-standings-list') || document.querySelector('.race-standings');
+  if (!standingsContainer) return;
+
+  // Gabungkan Player & Opponents lalu urutkan dari jarak terjauh (P1 sampai P24)
+  const allDrivers = [gameState.race.carState, ...gameState.race.opponents];
+  allDrivers.sort((a, b) => b.totalDistance - a.totalDistance);
+
+  let html = '<div class="standings-table">';
+  allDrivers.forEach((driver, idx) => {
+    const pos = idx + 1;
+    const isPlayerClass = driver.isPlayer ? 'style="font-weight:bold; color:#00f0ff;"' : '';
+    html += `
+      <div class="standing-row" ${isPlayerClass}>
+        <span><strong>P${pos}</strong></span>
+        <span>#${driver.number || idx + 1} ${driver.driverName || 'Driver'}</span>
+        <span>${driver.teamName || 'Rival'}</span>
+      </div>
+    `;
+  });
+  html += '</div>';
+
+  standingsContainer.innerHTML = html;
+}
+
 function endRace() {
   gameState.race.active = false;
   cancelAnimationFrame(raceAnimationId);
 
-  const prize = 50000000;
-  const repGain = 25;
+  // Hitung Hasil Akhir (Race Result)
+  const allDrivers = [gameState.race.carState, ...gameState.race.opponents];
+  allDrivers.sort((a, b) => b.totalDistance - a.totalDistance);
+  gameState.race.finalResults = allDrivers;
+
+  const playerPosition = allDrivers.findIndex(d => d.isPlayer) + 1;
+
+  // Pembagian Hadiah Berdasarkan Posisi Finis
+  let prize = 10000000;
+  let repGain = 5;
+
+  if (playerPosition === 1) { prize = 100000000; repGain = 50; }
+  else if (playerPosition === 2) { prize = 75000000; repGain = 35; }
+  else if (playerPosition === 3) { prize = 50000000; repGain = 25; }
+  else if (playerPosition <= 10) { prize = 25000000; repGain = 15; }
+
   gameState.cash += prize;
   gameState.reputation += repGain;
 
+  // Tampilkan Race Result Popup / Overlay
   const msg = document.getElementById('race-overlay-msg');
   if (msg) {
     msg.style.display = 'block';
-    msg.innerHTML = `🏁 FINISH! <br> Balapan Selesai! Hadiah: Rp ${prize.toLocaleString('id-ID')} & +${repGain} REP`;
+    
+    let resultHTML = `
+      <h3>🏁 RACE RESULT (FINISH)</h3>
+      <p>Kamu Finish di <strong>Posisi P${playerPosition}</strong>!</p>
+      <p>Hadiah: <strong>Rp ${prize.toLocaleString('id-ID')}</strong> & <strong>+${repGain} REP</strong></p>
+      <hr style="border-color:#334155; margin:10px 0;">
+      <div style="max-height: 200px; overflow-y: auto; text-align: left; font-size: 13px;">
+    `;
+
+    allDrivers.forEach((d, idx) => {
+      const p = idx + 1;
+      const highlight = d.isPlayer ? 'color:#00f0ff; font-weight:bold;' : '';
+      resultHTML += `<div style="${highlight}">P${p}. ${d.driverName} (${d.teamName})</div>`;
+    });
+
+    resultHTML += `</div>`;
+    msg.innerHTML = resultHTML;
   }
 
   renderUI();
