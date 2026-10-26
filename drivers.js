@@ -5,7 +5,8 @@
 const DRIVER_FIRST_NAMES = [
   'Rizky', 'Budi', 'Agus', 'Cecep', 'Ujang', 'Dadan', 'Eko', 'Asep',
   'Doni', 'Fajar', 'Galih', 'Hendrik', 'Indra', 'Joko', 'Kevin', 'Lukman',
-  'Maman', 'Niko', 'Oki', 'Pratama', 'Rendy', 'Sutisna', 'Taufik', 'Yudi'
+  'Maman', 'Niko', 'Oki', 'Pratama', 'Rendy', 'Sutisna', 'Taufik', 'Yudi',
+  'Adzka', 'Gilang', 'Rian', 'Fahmi', 'Aris', 'Bayu', 'Dian', 'Hendra'
 ];
 
 const DRIVER_LAST_NAMES = [
@@ -15,20 +16,18 @@ const DRIVER_LAST_NAMES = [
 ];
 
 const DRIVER_SKILLS = [
-  { name: 'Late Braker', desc: 'Sangat agresif di tikungan tajam.' },
-  { name: 'Tire Whisperer', desc: 'Mengurangi keausan ban sebesar 25%.' },
-  { name: 'Drafting Master', desc: 'Mendapat boost kecepatan saat mengekor lawan.' },
-  { name: 'Clutch God', desc: 'Akselerasi perpindahan gigi lebih cepat.' },
-  { name: 'Apex Hunter', desc: 'Kecepatan keluar tikungan lebih optimal.' },
-  { name: 'Smooth Operator', desc: 'Suhu mesin lebih stabil dan minim resiko overheat.' }
+  { name: 'Late Braker', desc: 'Agresif di tikungan tajam.' },
+  { name: 'Tire Whisperer', desc: 'Ban awet 25% lebih lama.' },
+  { name: 'Drafting Master', desc: 'Boost top speed saat mengekor lawan.' },
+  { name: 'Clutch God', desc: 'Akselerasi cepat dari gigi rendah.' },
+  { name: 'Apex Hunter', desc: 'Kecepatan keluar tikungan tinggi.' },
+  { name: 'Smooth Operator', desc: 'Suhu mesin lebih dingin.' }
 ];
 
-// Helper fungsi acak array
 function getRandomElement(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Fungsi membuat 1 driver acak
 function generateRandomDriver(id) {
   const firstName = getRandomElement(DRIVER_FIRST_NAMES);
   const lastName = getRandomElement(DRIVER_LAST_NAMES);
@@ -39,20 +38,8 @@ function generateRandomDriver(id) {
     name: `${firstName} "${skill.name}" ${lastName}`,
     shortName: firstName,
     skillName: skill.name,
-    skillDesc: skill.desc,
-    aggression: (Math.random() * 0.4 + 0.6).toFixed(2), // 0.60 - 1.00
-    consistency: (Math.random() * 0.3 + 0.7).toFixed(2)  // 0.70 - 1.00
+    skillDesc: skill.desc
   };
 }
 
-// Fungsi generate sekumpulan kandidat driver
-function generateDriverCandidates(count = 5) {
-  const list = [];
-  for (let i = 0; i < count; i++) {
-    list.push(generateRandomDriver(`d_${i + 1}`));
-  }
-  return list;
-}
-
 window.generateRandomDriver = generateRandomDriver;
-window.generateDriverCandidates = generateDriverCandidates;
