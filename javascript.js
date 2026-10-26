@@ -16,7 +16,7 @@ const gameState = {
     strategy: 'balanced', // push, balanced, conserve
     boxRequested: false,
     carState: {
-      angle: 0,
+      progress: 0, // Menggunakan progress indeks lintasan (0 ke waypoints.length)
       speed: 0,
       tire: 100,
       heat: 30,
@@ -42,9 +42,26 @@ const MECHANIC_CANDIDATES = [
 let canvas, ctx;
 let raceAnimationId;
 
+// --- UTILITY SPREAD WAYPOINTS ---
+function getPositionOnTrack(waypoints, progress) {
+  if (!waypoints || waypoints.length === 0) return { x: 0, y: 0 };
+  const n = waypoints.length;
+  let p = progress % n;
+  if (p < 0) p += n;
+
+  const index = Math.floor(p);
+  const t = p - index;
+  const p1 = waypoints[index];
+  const p2 = waypoints[(index + 1) % n];
+
+  return {
+    x: p1.x + (p2.x - p1.x) * t,
+    y: p1.y + (p2.y - p1.y) * t
+  };
+}
+
 // --- INITIALIZATION ---
 function init() {
-  // Navigation Tabs Listener
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -55,7 +72,6 @@ function init() {
     });
   });
 
-  // Strategy Buttons Listener
   document.querySelectorAll('.strat-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.id === 'box-btn') {
@@ -71,7 +87,6 @@ function init() {
     });
   });
 
-  // Save Button
   const saveBtn = document.getElementById('save-btn');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
@@ -84,17 +99,15 @@ function init() {
     });
   }
 
-  // Race Start Button
   const raceBtn = document.getElementById('start-race-btn');
   if (raceBtn) {
     raceBtn.addEventListener('click', startLiveRace);
   }
 
-  // Memberikan 2 Mobil Awal untuk Tim Player
   const carMarket = window.CAR_MARKET || [];
   if (carMarket.length > 0) {
-    buyCar(carMarket[0], true); // Mobil Utama
-    if (carMarket[1]) buyCar(carMarket[1], true); // Mobil Ke-2 Tim
+    buyCar(carMarket[0], true);
+    if (carMarket[1]) buyCar(carMarket[1], true);
   }
 
   if (typeof window.generateRandomDriver === 'function') {
@@ -122,7 +135,6 @@ function renderUI() {
   renderCrew();
 }
 
-// --- RENDER MARKET ---
 function renderMarket() {
   const container = document.getElementById('market-cars-list');
   if (!container) return;
@@ -177,7 +189,6 @@ function buyCar(carTemplate, free = false) {
   renderUI();
 }
 
-// --- RENDER GARAGE & MODS ---
 function renderGarage() {
   const listContainer = document.getElementById('owned-cars-list');
   if (!listContainer) return;
@@ -250,7 +261,6 @@ window.installMod = function(modId) {
   renderUI();
 };
 
-// --- RENDER KRU ---
 function renderCrew() {
   const driversDiv = document.getElementById('drivers-list');
   if (driversDiv) {
@@ -291,20 +301,37 @@ function initCanvas() {
 function drawStaticTrack() {
   if (!ctx || !canvas) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Outer circuit track loop
+
+  const trackKey = gameState.race.track || 'sentul';
+  const trackData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA[trackKey] : null;
+
+  if (!trackData || !trackData.waypoints || trackData.waypoints.length === 0) return;
+
+  const pts = trackData.waypoints;
+
+  // Gambar Jalan Aspal
   ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x, pts[i].y);
+  }
+  ctx.closePath();
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 40;
-  ctx.ellipse(400, 250, 320, 170, 0, 0, Math.PI * 2);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.stroke();
 
-  // Racing Line
+  // Gambar Racing Line Putus-putus
   ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x, pts[i].y);
+  }
+  ctx.closePath();
   ctx.strokeStyle = '#00f0ff';
   ctx.lineWidth = 2;
   ctx.setLineDash([8, 8]);
-  ctx.ellipse(400, 250, 320, 170, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
 }
@@ -316,57 +343,58 @@ function startLiveRace() {
     return;
   }
 
+  const trackSelect = document.getElementById('track-select');
+  if (trackSelect) {
+    gameState.race.track = trackSelect.value;
+  }
+
   gameState.race.active = true;
   gameState.race.laps = parseInt(document.getElementById('laps-select').value) || 5;
   gameState.race.currentLap = 1;
   gameState.race.carState = {
-    angle: 0,
+    progress: 0,
     speed: activeCar.speed,
     tire: 100,
     heat: 30
   };
 
   const allRivalCars = [];
-  let gridOffset = 0.03;
+  let gridOffset = 0.05;
 
-  // 1. Mobil Ke-2 milik Tim Player (Teammate)
   const teammateCar = gameState.ownedCars.find(c => c.uniqueId !== gameState.selectedCarId);
   if (teammateCar) {
-    gridOffset += 0.025;
+    gridOffset += 0.04;
     allRivalCars.push({
       number: 2,
       teamName: 'Tim Kamu (Teammate)',
       driverName: gameState.drivers[1] ? gameState.drivers[1].shortName : 'Rekan Tim',
       carModel: teammateCar.name,
-      angle: -gridOffset,
+      progress: -gridOffset,
       speed: teammateCar.speed,
-      color: '#3b82f6' // Warna Biru Tim Player
+      color: '#3b82f6'
     });
   }
 
-  // 2. Generate 11 Tim Lawan x 2 Mobil (22 Mobil Lawan)
   let elevenTeams = [];
   if (typeof window.generate12Teams === 'function') {
-    // Mengambil 11 tim pertama untuk lawan
     elevenTeams = window.generate12Teams().slice(0, 11);
   }
 
   elevenTeams.forEach((team) => {
     team.cars.forEach((carItem) => {
-      gridOffset += 0.025;
+      gridOffset += 0.04;
       allRivalCars.push({
         number: carItem.carNumber + 2,
         teamName: team.teamName,
         driverName: carItem.driver ? carItem.driver.shortName : 'Driver',
         carModel: carItem.model,
-        angle: -gridOffset,
+        progress: -gridOffset,
         speed: carItem.topSpeed * (0.85 + Math.random() * 0.15),
         color: team.liveryColor
       });
     });
   });
 
-  // Total: 1 Mobil Utama Kamu + 1 Mobil Teammate + 22 Mobil Lawan = 24 Mobil
   gameState.race.opponents = allRivalCars;
 
   const overlayMsg = document.getElementById('race-overlay-msg');
@@ -397,6 +425,10 @@ function updatePhysics() {
   const activeCar = gameState.ownedCars.find(c => c.uniqueId === gameState.selectedCarId);
   if (!activeCar) return;
 
+  const trackKey = gameState.race.track || 'sentul';
+  const trackData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA[trackKey] : null;
+  const totalWaypoints = (trackData && trackData.waypoints) ? trackData.waypoints.length : 8;
+
   let speedMult = 1.0;
   let tireDep = 0.05;
 
@@ -414,11 +446,12 @@ function updatePhysics() {
   car.speed = activeCar.speed * speedMult * (0.6 + 0.4 * gripFactor);
   car.tire = Math.max(0, car.tire - tireDep);
 
-  const angularSpeed = (car.speed / 10000);
-  car.angle += angularSpeed;
+  // Pergerakan berdasarkan kecepatan & jumlah waypoint
+  const deltaProgress = (car.speed / 15000) * (totalWaypoints / 8);
+  car.progress += deltaProgress;
 
-  if (car.angle >= Math.PI * 2) {
-    car.angle -= Math.PI * 2;
+  if (car.progress >= totalWaypoints) {
+    car.progress -= totalWaypoints;
     gameState.race.currentLap++;
 
     if (gameState.race.boxRequested) {
@@ -431,8 +464,8 @@ function updatePhysics() {
   }
 
   gameState.race.opponents.forEach(opp => {
-    opp.angle += (opp.speed / 10000);
-    if (opp.angle >= Math.PI * 2) opp.angle -= Math.PI * 2;
+    opp.progress += (opp.speed / 15000) * (totalWaypoints / 8);
+    if (opp.progress >= totalWaypoints) opp.progress -= totalWaypoints;
   });
 }
 
@@ -440,22 +473,23 @@ function renderRaceCanvas() {
   drawStaticTrack();
   if (!ctx) return;
 
-  // Render Mobil Utama Player (Titik Cyan)
-  const pX = 400 + 320 * Math.cos(gameState.race.carState.angle);
-  const pY = 250 + 170 * Math.sin(gameState.race.carState.angle);
+  const trackKey = gameState.race.track || 'sentul';
+  const trackData = typeof TRACKS_DATA !== 'undefined' ? TRACKS_DATA[trackKey] : null;
+  if (!trackData) return;
 
+  // Render Mobil Utama Player (Titik Cyan)
+  const pPos = getPositionOnTrack(trackData.waypoints, gameState.race.carState.progress);
   ctx.fillStyle = '#00f0ff';
   ctx.beginPath();
-  ctx.arc(pX, pY, 10, 0, Math.PI * 2);
+  ctx.arc(pPos.x, pPos.y, 10, 0, Math.PI * 2);
   ctx.fill();
 
-  // Render 23 Mobil Lainnya (Teammate + 22 Lawan)
+  // Render Mobil Opponents
   gameState.race.opponents.forEach(opp => {
-    const oX = 400 + 320 * Math.cos(opp.angle);
-    const oY = 250 + 170 * Math.sin(opp.angle);
+    const oPos = getPositionOnTrack(trackData.waypoints, opp.progress);
     ctx.fillStyle = opp.color || '#ff2a5f';
     ctx.beginPath();
-    ctx.arc(oX, oY, 6, 0, Math.PI * 2);
+    ctx.arc(oPos.x, oPos.y, 6, 0, Math.PI * 2);
     ctx.fill();
   });
 }
@@ -491,7 +525,6 @@ function endRace() {
   renderUI();
 }
 
-// Jalankan init setelah seluruh elemen DOM siap dimuat
 document.addEventListener('DOMContentLoaded', () => {
   init();
 });
