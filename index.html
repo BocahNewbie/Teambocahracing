@@ -3,26 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NASCOT Manager - Angkot Championship</title>
+  <title>NASCOT Championship Manager</title>
+  <!-- Link CSS Eksternal -->
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
+  <!-- MODAL POPUP SELEKSI TIM PERTAMA KALI -->
+  <div id="welcome-modal" class="overlay-screen">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>🏎️ KEJUARAAN NASCOT GRAND PRIX</h2>
+        <p>Pilih tim yang ingin Anda manajeri untuk memulai musim balap!</p>
+      </div>
+      <div class="modal-body">
+        <div id="team-select-container" class="team-select-grid"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
-    <!-- Top Dashboard Header -->
+    <!-- Top Header Status -->
     <header class="top-bar">
       <div class="brand">
-        <span class="logo">🚐</span>
+        <span style="font-size: 24px;">🚐</span>
         <h1>NASCOT <span>MANAGER</span></h1>
       </div>
       <div class="financial-status">
         <div class="stat-card">
-          <span class="lbl">KAS TIM</span>
-          <span class="val" id="team-cash">Rp 500.000.000</span>
+          <span class="lbl">TIM PILIHAN</span>
+          <span class="val highlight" id="player-team-name">-</span>
         </div>
         <div class="stat-card">
-          <span class="lbl">SPONSOR UTAMA</span>
-          <span class="val highlight" id="sponsor-name">Toko Sparepart Jaya</span>
+          <span class="lbl">MODAL KAS TIM</span>
+          <span class="val" id="team-cash">Rp 200.000.000</span>
         </div>
         <div class="stat-card">
           <span class="lbl">KLASIKEN POIN</span>
@@ -33,126 +47,63 @@
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="tab-btn active" data-tab="tab-dashboard">📊 Dashboard Pit Wall</button>
-      <button class="tab-btn" data-tab="tab-garage">🛠️ Garasi & Modif</button>
-      <button class="tab-btn" data-tab="tab-contracts">🤝 Kontrak Pembalap & Mekanik</button>
-      <button class="tab-btn" data-tab="tab-race">🏁 Balapan Live (Top-Down)</button>
+      <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Dashboard & Kalender</button>
+      <button class="tab-btn" onclick="switchTab('tab-garage')">🛠️ Garasi & Modifikasi</button>
+      <button class="tab-btn" onclick="switchTab('tab-drivers')">🏎️ Kontrak Driver</button>
+      <button class="tab-btn" onclick="switchTab('tab-mechanics')">👨‍🔧 Kontrak Mekanik</button>
+      <button class="tab-btn" onclick="switchTab('tab-market')">🏬 Beli Mobil Awal</button>
     </nav>
 
     <!-- Main Content Panels -->
     <main class="main-content">
-      <!-- TAB DASHBOARD -->
+      
+      <!-- TAB DASHBOARD & KALENDER BALAP -->
       <section id="tab-dashboard" class="tab-panel active">
-        <h2>Klasemen Musim NASCOT Cup Series (15 Tim / 30 Mobil)</h2>
-        <div class="grid-2col">
-          <div class="panel-box">
-            <h3>Klasemen Konstruktor (Tim)</h3>
-            <table class="data-table" id="table-team-standings">
-              <thead><tr><th>Pos</th><th>Tim</th><th>Poin</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="panel-box">
-            <h3>Klasemen Pembalap</h3>
-            <table class="data-table" id="table-driver-standings">
-              <thead><tr><th>Pos</th><th>Pembalap</th><th>Tim</th><th>Poin</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
+        <div id="welcome-banner-container"></div>
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">📅 Kalender Resmi Grand Prix Musim Ini</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Urutan sirkuit balap yang telah di-random otomatis dari sirkuit pembuka hingga sirkuit final:</p>
+        <div id="calendar-container" class="calendar-grid"></div>
       </section>
 
-      <!-- TAB GARASI -->
+      <!-- TAB GARASI & MODIFIKASI -->
       <section id="tab-garage" class="tab-panel">
-        <h2>Modifikasi & Setup Angkot Tim</h2>
-        <div class="grid-2col">
-          <div class="panel-box">
-            <h3>Pilih Mobil Tim</h3>
-            <div id="team-cars-selector"></div>
-          </div>
-          <div class="panel-box">
-            <h3>Opsi Modifikasi Mesin & Ban</h3>
-            <div id="mods-selection-list"></div>
-          </div>
-        </div>
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">🛠️ Bengkel Modifikasi & Tuning Mobil</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Pasang komponen modifikasi berkategori Card Model untuk meningkatkan performa di lintasan:</p>
+        <div id="garage-cards-container" class="cards-grid"></div>
       </section>
 
-      <!-- TAB KONTRAK & NEGO -->
-      <section id="tab-contracts" class="tab-panel">
-        <h2>Bursa Transfer & Negosiasi Kontrak</h2>
-        <div class="grid-2col">
-          <div class="panel-box">
-            <h3>Negosiasi Pembalap</h3>
-            <div id="driver-nego-container"></div>
-          </div>
-          <div class="panel-box">
-            <h3>Negosiasi Kepala Mekanik</h3>
-            <div id="mechanic-nego-container"></div>
-          </div>
-        </div>
+      <!-- TAB KONTRAK DRIVER -->
+      <section id="tab-drivers" class="tab-panel">
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏎️ Bursa & Negosiasi Driver</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Lakukan tawar-menawar harga per balapan (Minimal kontrak 7x balapan):</p>
+        <div id="driver-cards-container" class="cards-grid"></div>
       </section>
 
-      <!-- TAB BALAPAN LIVE -->
-      <section id="tab-race" class="tab-panel">
-        <div class="race-header">
-          <select id="select-track"></select>
-          <button id="btn-start-race" class="btn-action">🟢 MULAI BALAPAN</button>
-        </div>
-        
-        <div class="race-container">
-          <!-- Timing Tower / Live Leaderboard -->
-          <div class="timing-tower-panel">
-            <div class="race-info-bar">
-              <span id="race-lap-counter">LAP 0 / 15</span>
-              <span id="race-status">READY</span>
-            </div>
-            <table class="data-table timing-table">
-              <thead>
-                <tr>
-                  <th>POS</th>
-                  <th>NO</th>
-                  <th>PEMBALAP</th>
-                  <th>TIM</th>
-                  <th>GAP</th>
-                  <th>LAST LAP</th>
-                  <th>BEST LAP</th>
-                </tr>
-              </thead>
-              <tbody id="timing-tower-body">
-                <!-- Data baris balapan diisi via JavaScript -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Pit Wall Strategy Controller -->
-          <div class="pit-wall-panel">
-            <h3>Pit Wall Control</h3>
-            <div class="driver-control">
-              <h4>Mobil #1 Strategy</h4>
-              <button class="btn-strat" onclick="setStrategy(1, 'push', event)">🔥 Push Hard</button>
-              <button class="btn-strat active" onclick="setStrategy(1, 'neutral', event)">⚖️ Neutral</button>
-              <button class="btn-strat" onclick="setStrategy(1, 'save', event)">🌱 Save Tires</button>
-              <button class="btn-pit" onclick="callPitStop(1)">🔧 BOX THIS LAP</button>
-            </div>
-            <div class="driver-control">
-              <h4>Mobil #2 Strategy</h4>
-              <button class="btn-strat" onclick="setStrategy(2, 'push', event)">🔥 Push Hard</button>
-              <button class="btn-strat active" onclick="setStrategy(2, 'neutral', event)">⚖️ Neutral</button>
-              <button class="btn-strat" onclick="setStrategy(2, 'save', event)">🌱 Save Tires</button>
-              <button class="btn-pit" onclick="callPitStop(2)">🔧 BOX THIS LAP</button>
-            </div>
-          </div>
-        </div>
+      <!-- TAB KONTRAK MEKANIK -->
+      <section id="tab-mechanics" class="tab-panel">
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">👨‍🔧 Bursa & Negosiasi Mekanik</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Rekrut Kepala Mekanik berpengalaman untuk riset dan perawatan sasis/mesin:</p>
+        <div id="mechanic-cards-container" class="cards-grid"></div>
       </section>
+
+      <!-- TAB TOKO MOBIL -->
+      <section id="tab-market" class="tab-panel">
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏬 Pembelian Unit Mobil Pertama</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Gunakan modal awal Rp 200.000.000 untuk membeli mobil balap tim Anda:</p>
+        <div id="market-cards-container" class="cards-grid"></div>
+      </section>
+
     </main>
   </div>
 
-  <!-- Load External Scripts -->
+  <!-- External Script Database Load -->
   <script src="teams.js"></script>
+  <script src="tracks.js"></script>
   <script src="drivers.js"></script>
   <script src="mechanics.js"></script>
   <script src="cars.js"></script>
-  <script src="tracks.js"></script>
+
+  <!-- JavaScript Utama -->
   <script src="javascript.js"></script>
 </body>
 </html>
