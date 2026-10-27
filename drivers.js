@@ -1,13 +1,18 @@
 // Bank nama dan generator 30 Pembalap (2 per tim) dengan Trait/Keahlian Unik
-const DRIVER_FIRST_NAMES = `["Adam", "Alex", "Andrew", "Anthony", "Austin", "Benjamin", "Brian", "Bryan", "Charles", 
-                            "Christian", "Christopher", "Daniel", "David", "Dylan", "Ethan", "Gabriel", "George", "Henry", 
-                            "Jack", "Jacob", "James", "Jason", "John", "Jonathan", "Jordan", "Joseph", "Joshua", "Justin", 
-                            "Kevin", "Liam", "Logan", "Lucas", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Oliver", "Patrick", "Paul"]`;
-const DRIVER_LAST_NAMES = `["Adams", "Anderson", "Baker", "Brown", "Campbell", "Carter", "Clark", "Collins", "Davis", "Evans", 
-                            "Fisher", "Garcia", "Gibson", "Graham", "Green", "Hall", "Harris", "Hill", "Jackson", "Johnson", 
-                            "Jones", "King", "Lee", "Lewis", "Lopez", "Martin", "Miller", "Mitchell", "Moore", "Nelson", "Parker", 
-                            "Perez", "Phillips", "Roberts", "Robinson", "Rodriguez", "Scott", "Smith", "Stewart", "Taylor", "Thomas", 
-                            "Thompson", "Turner", "Walker", "Ward", "Watson", "White", "Williams", "Wilson", "Wright"]`;
+const DRIVER_FIRST_NAMES = [
+  "Adam", "Alex", "Andrew", "Anthony", "Austin", "Benjamin", "Brian", "Bryan", "Charles", 
+  "Christian", "Christopher", "Daniel", "David", "Dylan", "Ethan", "Gabriel", "George", "Henry", 
+  "Jack", "Jacob", "James", "Jason", "John", "Jonathan", "Jordan", "Joseph", "Joshua", "Justin", 
+  "Kevin", "Liam", "Logan", "Lucas", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Oliver", "Patrick", "Paul"
+];
+
+const DRIVER_LAST_NAMES = [
+  "Adams", "Anderson", "Baker", "Brown", "Campbell", "Carter", "Clark", "Collins", "Davis", "Evans", 
+  "Fisher", "Garcia", "Gibson", "Graham", "Green", "Hall", "Harris", "Hill", "Jackson", "Johnson", 
+  "Jones", "King", "Lee", "Lewis", "Lopez", "Martin", "Miller", "Mitchell", "Moore", "Nelson", "Parker", 
+  "Perez", "Phillips", "Roberts", "Robinson", "Rodriguez", "Scott", "Smith", "Stewart", "Taylor", "Thomas", 
+  "Thompson", "Turner", "Walker", "Ward", "Watson", "White", "Williams", "Wilson", "Wright"
+];
 
 // Daftar Keahlian / Trait Unik Pembalap
 const DRIVER_TRAITS = [
