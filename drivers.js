@@ -1,45 +1,32 @@
-/**
- * DRIVERS GENERATOR
- */
+// Bank nama dan generator 30 Pembalap (2 per tim)
+const DRIVER_FIRST_NAMES = ["Asep", "Cecep", "Ujang", "Dadang", "Iwan", "Eza", "Agus", "Budi", "Dede", "Eko", "Ferry", "Ginanjar", "Hery", "Iman", "Joko"];
+const DRIVER_LAST_NAMES = ["Supardi", "Hidayat", "Santoso", "Kurnia", "Pratama", "Ramdani", "Setiawan", "Suryana", "Wijaya", "Firmansyah", "Nugraha", "Saputra"];
 
-const DRIVER_FIRST_NAMES = [
-  'Rizky', 'Budi', 'Agus', 'Cecep', 'Ujang', 'Dadan', 'Eko', 'Asep',
-  'Doni', 'Fajar', 'Galih', 'Hendrik', 'Indra', 'Joko', 'Kevin', 'Lukman',
-  'Maman', 'Niko', 'Oki', 'Pratama', 'Rendy', 'Sutisna', 'Taufik', 'Yudi',
-  'Adzka', 'Gilang', 'Rian', 'Fahmi', 'Aris', 'Bayu', 'Dian', 'Hendra'
-];
+function generateDriverRoster() {
+  const drivers = [];
+  let driverId = 1;
 
-const DRIVER_LAST_NAMES = [
-  'Pratama', 'Santoso', 'Hidayat', 'Kurniawan', 'Saputra', 'Wijaya', 'Sutrisno',
-  'Nugraha', 'Setiawan', 'Ramadhan', 'Firmansyah', 'Budiman', 'Suherman',
-  'Gunawan', 'Permana', 'Suryana', 'Kusuma', 'Hardianto', 'Subagja', 'Wibowo'
-];
+  TEAMS_DATA.forEach(team => {
+    for (let carNum = 1; carNum <= 2; carNum++) {
+      const fname = DRIVER_FIRST_NAMES[Math.floor(Math.random() * DRIVER_FIRST_NAMES.length)];
+      const lname = DRIVER_LAST_NAMES[Math.floor(Math.random() * DRIVER_LAST_NAMES.length)];
+      
+      drivers.push({
+        id: `drv_${driverId}`,
+        name: `${fname} ${lname}`,
+        teamId: team.id,
+        carNumber: (driverId * 2) - (2 - carNum),
+        aggression: Math.floor(Math.random() * 30) + 70, // 70-100
+        tireCare: Math.floor(Math.random() * 30) + 70,
+        consistency: Math.floor(Math.random() * 30) + 70,
+        salaryPerRace: 15000000 + Math.floor(Math.random() * 10) * 1000000,
+        contractPatience: 3
+      });
+      driverId++;
+    }
+  });
 
-const DRIVER_SKILLS = [
-  { name: 'Late Braker', desc: 'Agresif di tikungan tajam.' },
-  { name: 'Tire Whisperer', desc: 'Ban awet 25% lebih lama.' },
-  { name: 'Drafting Master', desc: 'Boost top speed saat mengekor lawan.' },
-  { name: 'Clutch God', desc: 'Akselerasi cepat dari gigi rendah.' },
-  { name: 'Apex Hunter', desc: 'Kecepatan keluar tikungan tinggi.' },
-  { name: 'Smooth Operator', desc: 'Suhu mesin lebih dingin.' }
-];
-
-function getRandomElement(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return drivers;
 }
 
-function generateRandomDriver(id) {
-  const firstName = getRandomElement(DRIVER_FIRST_NAMES);
-  const lastName = getRandomElement(DRIVER_LAST_NAMES);
-  const skill = getRandomElement(DRIVER_SKILLS);
-
-  return {
-    id: id || 'drv_' + Math.random().toString(36).substr(2, 9),
-    name: `${firstName} "${skill.name}" ${lastName}`,
-    shortName: firstName,
-    skillName: skill.name,
-    skillDesc: skill.desc
-  };
-}
-
-window.generateRandomDriver = generateRandomDriver;
+const INITIAL_DRIVERS = generateDriverRoster();
