@@ -1,8 +1,8 @@
 // ==========================================
-// GAME STATE & SYSTEM DATA
+// GAME STATE & SYSTEM DATA (NASCAR SPEC)
 // ==========================================
 let gameData = {
-  cash: 500000000, // Rp 500 Juta awal
+  cash: 500000000, // Modal awal Rp 500 Juta
   sponsor: "Toko Sparepart Jaya",
   points: 0,
   seasonStarted: false,
@@ -11,10 +11,10 @@ let gameData = {
 
   // Player Setup
   playerTeam: null,
-  workshopLevel: 1,
-  myCars: [],       // Max 2 Mobil
-  myDrivers: [],    // Max 2 Pembalap
-  myMechanics: [],  // Min 1 Mekanik
+  workshopLevel: 1, // Level Bengkel 1-5
+  myCars: [],       // Maksimal 2 Mobil
+  myDrivers: [],    // Maksimal 2 Pembalap
+  myMechanics: [],  // Minimal 1 Mekanik
   calendarSchedule: []
 };
 
@@ -26,6 +26,7 @@ let isRacing = false;
 let raceInterval = null;
 let activeRaceTrack = null;
 
+// INITIALIZATION ON LOAD
 document.addEventListener("DOMContentLoaded", () => {
   initTeamSelectionModal();
   generateRandomCalendar();
@@ -54,8 +55,11 @@ function selectPlayerTeam(teamId) {
   const selected = TEAMS_DATA.find(t => t.id === teamId);
   gameData.playerTeam = selected;
 
-  document.getElementById("welcome-modal").style.display = "none";
-  document.getElementById("player-team-name").innerText = selected.name;
+  const modal = document.getElementById("welcome-modal");
+  if (modal) modal.style.display = "none";
+
+  const teamNameEl = document.getElementById("player-team-name");
+  if (teamNameEl) teamNameEl.innerText = selected.name;
 
   renderWelcomeBanner();
   updateFinancialUI();
@@ -76,7 +80,7 @@ function renderWelcomeBanner() {
         "Selamat bergabung di tim, semoga kita berhasil menjuarai Grand Prix ini!"
       </p>
       <p style="color: #8b949e; font-size: 12px; margin-top: 10px;">
-        ⚠️ <strong>Status Garasi Tim:</strong> Garasi masih <strong>KOSONG</strong>. 
+        ⚠️ <strong>Status Garasi Tim:</strong> Garasi saat ini masih <strong>KOSONG</strong>. 
         Gunakan modal awal <strong>Rp 500.000.000</strong> untuk melengkapi syarat tim: <strong>2 Mobil, 2 Pembalap, dan Minimal 1 Mekanik</strong>.
       </p>
     </div>
@@ -113,7 +117,8 @@ function advanceCalendarDay() {
     gameData.currentCalendarIndex++;
     const currentEvent = gameData.calendarSchedule[gameData.currentCalendarIndex];
 
-    document.getElementById("current-game-date").innerText = currentEvent.dateStr;
+    const dateEl = document.getElementById("current-game-date");
+    if (dateEl) dateEl.innerText = currentEvent.dateStr;
     renderCalendarUI();
 
     // Jika hari ini adalah Hari Balapan (Race Day)
@@ -129,7 +134,7 @@ function advanceCalendarDay() {
 }
 
 // ==========================================
-// 3. LIVE LEADERBOARD SIMULATOR ENGINE
+// 3. LIVE LEADERBOARD SIMULATOR ENGINE (#1-#999)
 // ==========================================
 function prepareRaceGrid() {
   if (!activeRaceTrack) return;
@@ -141,26 +146,60 @@ function prepareRaceGrid() {
   currentLapGlobal = 1;
   totalLaps = activeRaceTrack.lapsDefault || 20;
 
-  // Setup Roster 20 Mobil untuk Papan Klasemen
   raceCars = [];
-  let carIdx = 1;
+  
+  // Ambil data pembalap dari aset INITIAL_DRIVERS di drivers.js
+  let availableDrivers = (typeof INITIAL_DRIVERS !== "undefined") ? [...INITIAL_DRIVERS] : [];
+  
+  // Generator Nomor Pembalap Acak Unik (#1 hingga #999)
+  let usedNumbers = new Set();
+  function getUniqueCarNumber() {
+    let num;
+    do {
+      num = Math.floor(Math.random() * 999) + 1; // 1 s/d 999
+    } while (usedNumbers.has(num));
+    usedNumbers.add(num);
+    return num;
+  }
 
+  let globalCarIdx = 0;
+
+  // Grid Roster (2 Mobil Per Tim dari TEAMS_DATA)
   TEAMS_DATA.forEach((team) => {
     const isPlayer = (gameData.playerTeam && team.id === gameData.playerTeam.id);
-    for (let i = 1; i <= 2; i++) {
-      let driverName = `Driver ${carIdx}`;
+
+    for (let i = 0; i < 2; i++) {
+      let driverName = "";
+      let carNumber = getUniqueCarNumber(); // Nomor #1-#999
       let baseSpeed = 120 + Math.random() * 25;
 
       if (isPlayer) {
-        let pDriver = gameData.myDrivers[i - 1];
-        let pCar = gameData.myCars[i - 1];
-        driverName = pDriver ? pDriver.name : `Pembalap Tim ${i}`;
-        baseSpeed = pCar ? pCar.baseSpeed : 140;
+        // Tim Player: Menggunakan Driver & Mobil yang dikontrak
+        let pDriver = gameData.myDrivers[i];
+        let pCar = gameData.myCars[i];
+        
+        driverName = pDriver ? pDriver.name : `Driver Cadangan ${i + 1}`;
+        baseSpeed = pCar ? pCar.baseSpeed : 135;
+      } else {
+        // Tim NPC: Mengambil nama asli dari aset INITIAL_DRIVERS (drivers.js)
+        if (availableDrivers.length > 0) {
+          let teamDriverIdx = availableDrivers.findIndex(d => d.teamId === team.id);
+          if (teamDriverIdx !== -1) {
+            driverName = availableDrivers[teamDriverIdx].name;
+            availableDrivers.splice(teamDriverIdx, 1);
+          } else {
+            let randomDrv = availableDrivers.pop();
+            driverName = randomDrv ? randomDrv.name : `Pembalap ${globalCarIdx + 1}`;
+          }
+        } else {
+          driverName = `Pembalap ${globalCarIdx + 1}`;
+        }
       }
 
       raceCars.push({
-        id: `car_${carIdx}`,
-        pos: carIdx,
+        id: `car_${globalCarIdx + 1}`,
+        number: carNumber, // Nomor Pembalap #1 - #999
+        pos: globalCarIdx + 1,
         driverName: driverName,
         teamName: team.name,
         teamColor: team.color,
@@ -172,7 +211,8 @@ function prepareRaceGrid() {
         bestLapTime: null,
         lapStartTime: Date.now()
       });
-      carIdx++;
+
+      globalCarIdx++;
     }
   });
 
@@ -221,7 +261,7 @@ function updateRaceLogic() {
     }
   });
 
-  // Sort berdasarkan jarak tempuh terbanyak
+  // Urutkan berdasarkan jarak tempuh tertinggi
   raceCars.sort((a, b) => b.distance - a.distance);
   raceCars.forEach((c, idx) => c.pos = idx + 1);
 
@@ -235,12 +275,12 @@ function updateRaceLogic() {
     isRacing = false;
     document.getElementById("race-status").innerText = "CHECKERED FLAG 🏁";
     document.getElementById("btn-toggle-race").innerText = "Selesai";
-    alert(`🏁 BALAPAN SELESAI!\nPemenang GP: ${raceCars[0].driverName} (${raceCars[0].teamName})`);
+    alert(`🏁 BALAPAN SELESAI!\nPemenang GP: #${raceCars[0].number} ${raceCars[0].driverName} (${raceCars[0].teamName})`);
     repairCarsPostRace();
   }
 }
 
-// RENDER BADGE KOTAK PERSEGI PANJANG UJUNG RUNCING
+// RENDER TIMING TOWER DENGAN CHAMFERED BADGE & NOMOR (#1-#999)
 function renderTimingTower() {
   const tbody = document.getElementById("timing-tower-body");
   if (!tbody) return;
@@ -259,7 +299,9 @@ function renderTimingTower() {
             ${car.teamName}
           </div>
         </td>
-        <td style="font-weight:bold; color:#fff;">${car.driverName}</td>
+        <td style="font-weight:bold; color:#fff;">
+          <span style="color:#f39c12; font-family:monospace; margin-right:6px;">[#${car.number}]</span>${car.driverName}
+        </td>
         <td>${gapText}</td>
         <td>${intervalText}</td>
         <td>${car.lastLapTime ? car.lastLapTime.toFixed(3) + 's' : '-'}</td>
@@ -269,7 +311,7 @@ function renderTimingTower() {
   }).join('');
 }
 
-// Auto Repair setelah balap oleh Mekanik
+// Perbaikan Otomatis Durabilitas Mobil oleh Mekanik
 function repairCarsPostRace() {
   if (gameData.myCars.length === 0 || gameData.myMechanics.length === 0) return;
   let repairAmount = Math.floor((gameData.myMechanics.length * 15) + (gameData.workshopLevel * 5));
@@ -281,7 +323,7 @@ function repairCarsPostRace() {
 }
 
 // ==========================================
-// 4. BURSA KONTRAK DRIVER & MEKANIK
+// 4. BURSA KONTRAK DRIVER & MEKANIK (SLIDER NEGO)
 // ==========================================
 function renderDriverCards() {
   const container = document.getElementById("driver-cards-container");
@@ -301,6 +343,7 @@ function renderDriverCards() {
           </div>
           <div class="card-stats">
             <div class="stat-row"><span>Agresivitas:</span><span>${drv.aggression}</span></div>
+            <div class="stat-row"><span>Konsistensi:</span><span>${drv.consistency}</span></div>
             <div class="stat-row"><span>Ekspektasi:</span><span>Rp ${(drv.salaryPerRace / 1000000).toFixed(1)} Jt / Balap</span></div>
           </div>
         </div>
@@ -332,14 +375,14 @@ function negoDriver(drvId) {
     if (gameData.cash >= totalPayment) {
       gameData.cash -= totalPayment;
       gameData.myDrivers.push({ ...drv, salaryPerRace: offerPerRace, remainingRaces: raceCount });
-      alert(`✅ Negosiasi Sukses!\n${drv.name} dikontrak selama ${raceCount} balapan.`);
+      alert(`✅ Negosiasi Sukses!\n${drv.name} resmi dikontrak selama ${raceCount} balapan dengan total biaya Rp ${totalPayment.toLocaleString('id-ID')}.`);
       updateFinancialUI();
       renderDriverCards();
     } else {
-      alert(`❌ Modal kas tidak cukup!`);
+      alert(`❌ Modal kas tidak cukup! Butuh Rp ${totalPayment.toLocaleString('id-ID')}`);
     }
   } else {
-    alert(`❌ Negosiasi Ditolak oleh ${drv.name}!`);
+    alert(`❌ Negosiasi Ditolak!\n${drv.name}: "Tawaran gaji Rp ${offerPerRace.toLocaleString('id-ID')}/balap terlalu rendah!"`);
   }
 }
 
@@ -392,14 +435,14 @@ function negoMechanic(mechId) {
     if (gameData.cash >= totalPayment) {
       gameData.cash -= totalPayment;
       gameData.myMechanics.push({ ...mech, salaryPerRace: offerPerRace, remainingRaces: raceCount });
-      alert(`✅ Kepala Mekanik ${mech.name} resmi dikontrak!`);
+      alert(`✅ Kepala Mekanik ${mech.name} resmi dikontrak selama ${raceCount} balapan.`);
       updateFinancialUI();
       renderMechanicCards();
     } else {
-      alert(`❌ Modal kas tidak cukup!`);
+      alert(`❌ Modal kas tidak cukup! Butuh Rp ${totalPayment.toLocaleString('id-ID')}`);
     }
   } else {
-    alert(`❌ ${mech.name} menolak tawaran!`);
+    alert(`❌ ${mech.name} menolak tawaran gaji tersebut!`);
   }
 }
 
@@ -413,7 +456,7 @@ function updateNegoCalc(type, id) {
 }
 
 // ==========================================
-// 5. TOKO MOBIL & GARASI
+// 5. TOKO MOBIL & GARASI MODIFIKASI
 // ==========================================
 function renderMarketCards() {
   const container = document.getElementById("market-cards-container");
@@ -429,6 +472,7 @@ function renderMarketCards() {
         <div class="card-stats">
           <div class="stat-row"><span>Speed Dasar:</span><span>${car.baseSpeed} KM/H</span></div>
           <div class="stat-row"><span>Handling:</span><span>${car.baseHandling} / 100</span></div>
+          <div class="stat-row"><span>Daya Tahan:</span><span>${car.baseDurability} / 100</span></div>
         </div>
       </div>
       <button class="btn-action" ${gameData.myCars.length >= 2 ? 'disabled' : ''} onclick="buyCar('${car.id}')">
@@ -522,6 +566,9 @@ function upgradeWorkshop() {
   }
 }
 
+// ==========================================
+// 6. UTILITY & KALENDER
+// ==========================================
 function generateRandomCalendar() {
   if (typeof TRACKS_DATA === "undefined") return;
   const shuffledTracks = [...TRACKS_DATA].sort(() => 0.5 - Math.random());
@@ -536,7 +583,7 @@ function generateRandomCalendar() {
 
     schedule.push({
       day: i,
-      dateStr: currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+      dateStr: currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
       isRace: isRaceDay,
       track: track
     });
@@ -553,7 +600,7 @@ function renderCalendarUI() {
   container.innerHTML = gameData.calendarSchedule.map((s, idx) => `
     <div class="calendar-day ${s.isRace ? 'race-day' : ''} ${idx === gameData.currentCalendarIndex ? 'active-day' : ''}">
       <div>
-        <span class="date-num">${s.dateStr}</span>
+        <span class="date-num">📅 ${s.dateStr}</span>
         <div class="event-title">${s.isRace ? '🏁 GP: ' + s.track.name : '🛠️ Hari Persiapan'}</div>
       </div>
       ${s.isRace ? `<div style="font-size:10px; color:#f39c12; margin-top:4px;">${s.track.type} (${s.track.lengthKm} KM)</div>` : ''}
