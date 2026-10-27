@@ -36,7 +36,10 @@ function initTabs() {
 
       btn.classList.add("active");
       const targetTab = btn.getAttribute("data-tab");
-      document.getElementById(targetTab).classList.add("active");
+      const targetPanel = document.getElementById(targetTab);
+      if (targetPanel) {
+        targetPanel.classList.add("active");
+      }
       gameData.currentTab = targetTab;
     });
   });
@@ -51,9 +54,13 @@ function initDashboard() {
 }
 
 function updateFinancialUI() {
-  document.getElementById("team-cash").innerText = `Rp ${gameData.cash.toLocaleString('id-ID')}`;
-  document.getElementById("sponsor-name").innerText = gameData.sponsor;
-  document.getElementById("team-points").innerText = `${gameData.points} PTS`;
+  const cashEl = document.getElementById("team-cash");
+  const sponsorEl = document.getElementById("sponsor-name");
+  const pointsEl = document.getElementById("team-points");
+
+  if (cashEl) cashEl.innerText = `Rp ${gameData.cash.toLocaleString('id-ID')}`;
+  if (sponsorEl) sponsorEl.innerText = gameData.sponsor;
+  if (pointsEl) pointsEl.innerText = `${gameData.points} PTS`;
 }
 
 function renderStandings() {
@@ -115,8 +122,11 @@ function setupEventListeners() {
 
 function startRace() {
   gameData.isRacing = true;
-  document.getElementById("btn-start-race").innerText = "⏹️ HENTIKAN BALAPAN";
-  document.getElementById("race-status").innerText = "RACING";
+  const btnStart = document.getElementById("btn-start-race");
+  const raceStatus = document.getElementById("race-status");
+
+  if (btnStart) btnStart.innerText = "⏹️ HENTIKAN BALAPAN";
+  if (raceStatus) raceStatus.innerText = "RACING";
 
   // Inisialisasi Mobil untuk Balapan
   setupRaceCars();
@@ -129,8 +139,12 @@ function startRace() {
 function stopRace() {
   gameData.isRacing = false;
   clearInterval(gameData.raceInterval);
-  document.getElementById("btn-start-race").innerText = "🟢 MULAI BALAPAN";
-  document.getElementById("race-status").innerText = "FINISHED";
+
+  const btnStart = document.getElementById("btn-start-race");
+  const raceStatus = document.getElementById("race-status");
+
+  if (btnStart) btnStart.innerText = "🟢 MULAI BALAPAN";
+  if (raceStatus) raceStatus.innerText = "FINISHED";
 }
 
 function setupRaceCars() {
@@ -145,7 +159,7 @@ function setupRaceCars() {
     return {
       id: driver.id || index + 1,
       number: index + 1,
-      driverName: driver.name,
+      driverName: driver.name || `Pembalap ${index + 1}`,
       teamName: driver.team || "Independent",
       isTeamCar: index === 0 || index === 1, // Mobil #1 & #2 milik tim pemain
       distanceCovered: 0,
@@ -249,7 +263,9 @@ function setStrategy(carNum, strat) {
   const controls = document.querySelectorAll(`.driver-control`)[carNum - 1];
   if (controls) {
     controls.querySelectorAll(".btn-strat").forEach(btn => btn.classList.remove("active"));
-    event.target.classList.add("active");
+    if (event && event.target) {
+      event.target.classList.add("active");
+    }
   }
 }
 
