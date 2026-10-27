@@ -135,7 +135,7 @@ function initTrackSelector() {
 }
 
 // ==========================================
-// SETUP ROSTER BALAPAN (MENGAMBIL RELASI DARI TEAMS_DATA)
+// SETUP ROSTER BALAPAN (2 DRIVER PER TIM DARI TEAMS_DATA)
 // ==========================================
 function setupRaceCars() {
   raceCars = [];
@@ -196,7 +196,7 @@ function setupRaceCars() {
 }
 
 // ==========================================
-// LIVE RACE ENGINE (SIMULASI NASCAR & KONTROL PAUSE)
+// LIVE RACE ENGINE & PAUSE CONTROL
 // ==========================================
 function setupEventListeners() {
   const btnStart = document.getElementById("btn-start-race");
@@ -258,6 +258,9 @@ function startRace() {
 
   setupRaceCars();
 
+  const container = document.getElementById("telemetry-drivers-container");
+  if (container) container.innerHTML = ""; // Reset DOM Telemetri saat balapan baru
+
   if (gameData.raceInterval) clearInterval(gameData.raceInterval);
   gameData.raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
 }
@@ -278,17 +281,17 @@ function stopRace() {
   calculateFinalNascarPoints();
 }
 
-// LOOP UTAMA SIMULASI BALAP
+// SIMULASI UTAMA BALAP
 function updateRaceLogic() {
   if (gameData.isPaused) return;
 
   let raceFinished = true;
 
-  // Sorting Posisi Lintasan untuk Drafting & Peringkat Driver
+  // Sorting Posisi Lintasan untuk Drafting & Posisi Driver
   let sortedPositions = [...raceCars].sort((a, b) => b.distanceCovered - a.distanceCovered);
 
   sortedPositions.forEach((car, posIdx) => {
-    car.currentPosition = posIdx + 1; // Update posisi real-time
+    car.currentPosition = posIdx + 1;
   });
 
   raceCars.forEach(car => {
@@ -459,88 +462,13 @@ function renderPitWallTelemetryUI() {
   `;
 }
 
-// Visualisasi Siluet Mobil 2D & Telemetri Realtime
-function updateLiveTelemetryUI() {
-  const container = document.getElementById("telemetry-drivers-container");
-  if (!container) return;
-
-  const teamCars = raceCars.filter(c => c.isTeamCar);
-  if (teamCars.length === 0) {
-    container.innerHTML = "<p>Tidak ada mobil tim aktif di lintasan.</p>";
-    return;
-  }
-
-  container.innerHTML = teamCars.map((car) => {
-    const colFL = getTireColor(car.tires.FL);
-    const colFR = getTireColor(car.tires.FR);
-    const colRL = getTireColor(car.tires.RL);
-    const colRR = getTireColor(car.tires.RR);
-
-    return `
-      <div class="driver-control" style="background: #161b22; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #30363d;">
-        <!-- Header Driver & Posisi Balap -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <h4 style="color:${car.teamColor}; margin:0;">Mobil #${car.number} - ${car.driverName}</h4>
-          <span style="background: #f39c12; color: #111; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px;">
-            POS #${car.currentPosition}
-          </span>
-        </div>
-        
-        <!-- Grid LayOut: Siluet Mobil & Telemetri -->
-        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
-          
-          <!-- Visual Siluet Mobil 2D & 4 Ban -->
-          <div style="position: relative; width: 70px; height: 110px; background: #0d1117; border: 2px solid #30363d; border-radius: 10px; flex-shrink: 0; display: flex; justify-content: center; align-items: center;">
-            <div style="font-size: 8px; color: #555; font-weight: bold;">FRONT</div>
-            
-            <!-- Ban FL (Front Left) -->
-            <div title="Front Left: ${car.tires.FL.toFixed(0)}%" style="position: absolute; top: 10px; left: -8px; width: 10px; height: 22px; background: ${colFL}; border-radius: 3px; border: 1px solid #000;"></div>
-            <!-- Ban FR (Front Right) -->
-            <div title="Front Right: ${car.tires.FR.toFixed(0)}%" style="position: absolute; top: 10px; right: -8px; width: 10px; height: 22px; background: ${colFR}; border-radius: 3px; border: 1px solid #000;"></div>
-            <!-- Ban RL (Rear Left) -->
-            <div title="Rear Left: ${car.tires.RL.toFixed(0)}%" style="position: absolute; bottom: 10px; left: -8px; width: 10px; height: 22px; background: ${colRL}; border-radius: 3px; border: 1px solid #000;"></div>
-            <!-- Ban RR (Rear Right) -->
-            <div title="Rear Right: ${car.tires.RR.toFixed(0)}%" style="position: absolute; bottom: 10px; right: -8px; width: 10px; height: 22px; background: ${colRR}; border-radius: 3px; border: 1px solid #000;"></div>
-          </div>
-
-          <!-- Telemetri Angka / Statistik -->
-          <div style="flex: 1; font-size: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-            <div>Bensin: <strong style="color:${car.fuel < 20 ? '#e74c3c' : '#2ecc71'}">${car.fuel.toFixed(1)}%</strong></div>
-            <div>Suhu: <strong style="color:${car.engineTemp > 105 ? '#e74c3c' : '#f1c40f'}">${car.engineTemp.toFixed(1)}°C</strong></div>
-            <div>Mesin: <strong>${car.engineHealth.toFixed(0)}%</strong></div>
-            <div>Bodi: <strong>${car.bodyHealth.toFixed(0)}%</strong></div>
-            <div style="grid-column: span 2; font-size: 10px; color: #8b949e; margin-top: 3px;">
-              FL: <span style="color:${colFL}">${car.tires.FL.toFixed(0)}%</span> | 
-              FR: <span style="color:${colFR}">${car.tires.FR.toFixed(0)}%</span> | 
-              RL: <span style="color:${colRL}">${car.tires.RL.toFixed(0)}%</span> | 
-              RR: <span style="color:${colRR}">${car.tires.RR.toFixed(0)}%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tombol Intervensi Strategi -->
-        <div style="display: flex; gap: 4px;">
-          <button class="btn-strat ${car.strategy === 'push' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'push', event)">🔥 Push</button>
-          <button class="btn-strat ${car.strategy === 'neutral' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'neutral', event)">⚖️ Neutral</button>
-          <button class="btn-strat ${car.strategy === 'save' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'save', event)">🌱 Save</button>
-          <button class="btn-pit" onclick="callPitStop(${car.number})" ${car.inPit ? 'disabled' : ''}>🔧 BOX (PIT)</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
-
-// ==========================================
-// STRATEGI & INTERVENSI PIT STOP (FIXED)
-// ==========================================
+// STRATEGI HANDLER (RESPON VISUAL INSTAN TANPA LAG)
 function setStrategy(carNum, strat, evt) {
   let targetCar = raceCars.find(c => c.number === carNum);
   if (targetCar) {
-    // 1. Update data strategi utama pada objek mobil
     targetCar.strategy = strat;
   }
 
-  // 2. Langsung perbarui kelas active pada UI saat diklik (instant feedback)
   if (evt && evt.currentTarget) {
     const parent = evt.currentTarget.parentElement;
     if (parent) {
@@ -550,7 +478,25 @@ function setStrategy(carNum, strat, evt) {
   }
 }
 
-// Update Visual Telemetri Realtime & Tombol Strategi
+function callPitStop(carNum) {
+  let targetCar = raceCars.find(c => c.number === carNum);
+  if (targetCar && gameData.isRacing && !targetCar.inPit) {
+    targetCar.inPit = true;
+    targetCar.status = "IN PIT";
+    targetCar.pitTimer = 12;
+
+    targetCar.fuel = 100.0;
+    targetCar.tires.FL = 100.0;
+    targetCar.tires.FR = 100.0;
+    targetCar.tires.RL = 100.0;
+    targetCar.tires.RR = 100.0;
+    targetCar.engineTemp = 85.0;
+
+    alert(`Mobil #${carNum} (${targetCar.driverName}) masuk Pit Stop! Refill Bensin & Ganti 4 Ban Baru.`);
+  }
+}
+
+// UPDATE PRESISI TELEMETRI (ANTI-DELAY)
 function updateLiveTelemetryUI() {
   const container = document.getElementById("telemetry-drivers-container");
   if (!container) return;
@@ -561,58 +507,81 @@ function updateLiveTelemetryUI() {
     return;
   }
 
-  container.innerHTML = teamCars.map((car) => {
+  // Buat Kerangka HTML Sekali Saja Saat Awal Balap
+  if (container.children.length !== teamCars.length) {
+    container.innerHTML = teamCars.map((car) => `
+      <div class="driver-control" id="control-car-${car.number}" style="background: #161b22; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #30363d;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="color:${car.teamColor}; margin:0;">Mobil #${car.number} - ${car.driverName}</h4>
+          <span class="car-pos-badge" style="background: #f39c12; color: #111; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px;">
+            POS #${car.currentPosition}
+          </span>
+        </div>
+        
+        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
+          <div style="position: relative; width: 70px; height: 110px; background: #0d1117; border: 2px solid #30363d; border-radius: 10px; flex-shrink: 0; display: flex; justify-content: center; align-items: center;">
+            <div style="font-size: 8px; color: #555; font-weight: bold;">FRONT</div>
+            <div class="tire-fl" style="position: absolute; top: 10px; left: -8px; width: 10px; height: 22px; border-radius: 3px; border: 1px solid #000;"></div>
+            <div class="tire-fr" style="position: absolute; top: 10px; right: -8px; width: 10px; height: 22px; border-radius: 3px; border: 1px solid #000;"></div>
+            <div class="tire-rl" style="position: absolute; bottom: 10px; left: -8px; width: 10px; height: 22px; border-radius: 3px; border: 1px solid #000;"></div>
+            <div class="tire-rr" style="position: absolute; bottom: 10px; right: -8px; width: 10px; height: 22px; border-radius: 3px; border: 1px solid #000;"></div>
+          </div>
+
+          <div style="flex: 1; font-size: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <div>Bensin: <strong class="val-fuel">100%</strong></div>
+            <div>Suhu: <strong class="val-temp">85°C</strong></div>
+            <div>Mesin: <strong class="val-engine">100%</strong></div>
+            <div>Bodi: <strong class="val-body">100%</strong></div>
+            <div class="val-tires-text" style="grid-column: span 2; font-size: 10px; color: #8b949e; margin-top: 3px;"></div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 4px;">
+          <button class="btn-strat ${car.strategy === 'push' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'push', event)">🔥 Push</button>
+          <button class="btn-strat ${car.strategy === 'neutral' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'neutral', event)">⚖️ Neutral</button>
+          <button class="btn-strat ${car.strategy === 'save' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'save', event)">🌱 Save</button>
+          <button class="btn-pit btn-pit-action" onclick="callPitStop(${car.number})">🔧 BOX (PIT)</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // Update Nilai Telemetri Secara Presisi
+  teamCars.forEach(car => {
+    const card = document.getElementById(`control-car-${car.number}`);
+    if (!card) return;
+
     const colFL = getTireColor(car.tires.FL);
     const colFR = getTireColor(car.tires.FR);
     const colRL = getTireColor(car.tires.RL);
     const colRR = getTireColor(car.tires.RR);
 
-    return `
-      <div class="driver-control" style="background: #161b22; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #30363d;">
-        <!-- Header Driver & Posisi Balap -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <h4 style="color:${car.teamColor}; margin:0;">Mobil #${car.number} - ${car.driverName}</h4>
-          <span style="background: #f39c12; color: #111; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px;">
-            POS #${car.currentPosition}
-          </span>
-        </div>
-        
-        <!-- Grid Layout: Siluet Mobil & Telemetri -->
-        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
-          
-          <!-- Visual Siluet Mobil 2D & 4 Ban -->
-          <div style="position: relative; width: 70px; height: 110px; background: #0d1117; border: 2px solid #30363d; border-radius: 10px; flex-shrink: 0; display: flex; justify-content: center; align-items: center;">
-            <div style="font-size: 8px; color: #555; font-weight: bold;">FRONT</div>
-            
-            <div title="Front Left: ${car.tires.FL.toFixed(0)}%" style="position: absolute; top: 10px; left: -8px; width: 10px; height: 22px; background: ${colFL}; border-radius: 3px; border: 1px solid #000;"></div>
-            <div title="Front Right: ${car.tires.FR.toFixed(0)}%" style="position: absolute; top: 10px; right: -8px; width: 10px; height: 22px; background: ${colFR}; border-radius: 3px; border: 1px solid #000;"></div>
-            <div title="Rear Left: ${car.tires.RL.toFixed(0)}%" style="position: absolute; bottom: 10px; left: -8px; width: 10px; height: 22px; background: ${colRL}; border-radius: 3px; border: 1px solid #000;"></div>
-            <div title="Rear Right: ${car.tires.RR.toFixed(0)}%" style="position: absolute; bottom: 10px; right: -8px; width: 10px; height: 22px; background: ${colRR}; border-radius: 3px; border: 1px solid #000;"></div>
-          </div>
+    card.querySelector(".car-pos-badge").innerText = `POS #${car.currentPosition}`;
+    
+    card.querySelector(".tire-fl").style.background = colFL;
+    card.querySelector(".tire-fr").style.background = colFR;
+    card.querySelector(".tire-rl").style.background = colRL;
+    card.querySelector(".tire-rr").style.background = colRR;
 
-          <!-- Telemetri Angka / Statistik -->
-          <div style="flex: 1; font-size: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-            <div>Bensin: <strong style="color:${car.fuel < 20 ? '#e74c3c' : '#2ecc71'}">${car.fuel.toFixed(1)}%</strong></div>
-            <div>Suhu: <strong style="color:${car.engineTemp > 105 ? '#e74c3c' : '#f1c40f'}">${car.engineTemp.toFixed(1)}°C</strong></div>
-            <div>Mesin: <strong>${car.engineHealth.toFixed(0)}%</strong></div>
-            <div>Bodi: <strong>${car.bodyHealth.toFixed(0)}%</strong></div>
-            <div style="grid-column: span 2; font-size: 10px; color: #8b949e; margin-top: 3px;">
-              FL: <span style="color:${colFL}">${car.tires.FL.toFixed(0)}%</span> | 
-              FR: <span style="color:${colFR}">${car.tires.FR.toFixed(0)}%</span> | 
-              RL: <span style="color:${colRL}">${car.tires.RL.toFixed(0)}%</span> | 
-              RR: <span style="color:${colRR}">${car.tires.RR.toFixed(0)}%</span>
-            </div>
-          </div>
-        </div>
+    const fuelEl = card.querySelector(".val-fuel");
+    fuelEl.innerText = `${car.fuel.toFixed(1)}%`;
+    fuelEl.style.color = car.fuel < 20 ? '#e74c3c' : '#2ecc71';
 
-        <!-- Tombol Intervensi Strategi (Terhubung langsung dengan car.strategy) -->
-        <div style="display: flex; gap: 4px;">
-          <button class="btn-strat ${car.strategy === 'push' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'push', event)">🔥 Push</button>
-          <button class="btn-strat ${car.strategy === 'neutral' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'neutral', event)">⚖️ Neutral</button>
-          <button class="btn-strat ${car.strategy === 'save' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'save', event)">🌱 Save</button>
-          <button class="btn-pit" onclick="callPitStop(${car.number})" ${car.inPit ? 'disabled' : ''}>🔧 BOX (PIT)</button>
-        </div>
-      </div>
+    const tempEl = card.querySelector(".val-temp");
+    tempEl.innerText = `${car.engineTemp.toFixed(1)}°C`;
+    tempEl.style.color = car.engineTemp > 105 ? '#e74c3c' : '#f1c40f';
+
+    card.querySelector(".val-engine").innerText = `${car.engineHealth.toFixed(0)}%`;
+    card.querySelector(".val-body").innerText = `${car.bodyHealth.toFixed(0)}%`;
+
+    card.querySelector(".val-tires-text").innerHTML = `
+      FL: <span style="color:${colFL}">${car.tires.FL.toFixed(0)}%</span> | 
+      FR: <span style="color:${colFR}">${car.tires.FR.toFixed(0)}%</span> | 
+      RL: <span style="color:${colRL}">${car.tires.RL.toFixed(0)}%</span> | 
+      RR: <span style="color:${colRR}">${car.tires.RR.toFixed(0)}%</span>
     `;
-  }).join("");
+
+    const pitBtn = card.querySelector(".btn-pit-action");
+    if (pitBtn) pitBtn.disabled = car.inPit;
+  });
 }
