@@ -2,7 +2,7 @@
 // GAME STATE & SYSTEM DATA (NASCAR SPEC)
 // ==========================================
 let gameData = {
-  cash: 200000000, // Modal awal 200 Juta
+  cash: 200000000, // Modal awal Rp 200 Juta
   sponsor: "Toko Sparepart Jaya",
   points: 0,
   currentTab: "tab-dashboard",
@@ -15,9 +15,9 @@ let gameData = {
   // Player Setup
   playerTeam: null,
   workshopLevel: 1, // Level Bengkel 1-5
-  myCars: [],       // Max 2 Mobil
-  myDrivers: [],    // Max 2 Pembalap
-  myMechanics: [],  // Min 1 Mekanik
+  myCars: [],       // Maksimal 2 Mobil
+  myDrivers: [],    // Maksimal 2 Pembalap
+  myMechanics: [],  // Minimal 1 Mekanik
   calendarSchedule: []
 };
 
@@ -31,6 +31,10 @@ document.addEventListener("DOMContentLoaded", () => {
   generateRandomCalendar();
   initDashboard();
 });
+
+function initDashboard() {
+  updateFinancialUI();
+}
 
 // ==========================================
 // 1. SELEKSI TIM & BANNER SAMBUTAN
@@ -54,7 +58,6 @@ function selectPlayerTeam(teamId) {
   const selected = TEAMS_DATA.find(t => t.id === teamId);
   gameData.playerTeam = selected;
 
-  // Tutup Modal Popup
   const modal = document.getElementById("welcome-modal");
   if (modal) modal.style.display = "none";
 
@@ -80,7 +83,7 @@ function renderWelcomeBanner() {
         "Selamat bergabung di tim, semoga kita berhasil menjuarai Grand Prix ini!"
       </p>
       <p style="color: #8b949e; font-size: 12px; margin-top: 10px;">
-        ⚠️ <strong>Status Garasi Tim:</strong> Saat ini Mobil, Pembalap, Mekanik, dan Aksesoris masih <strong>KOSONG</strong>. 
+        ⚠️ <strong>Status Garasi Tim:</strong> Garasi masih <strong>KOSONG</strong>. 
         Gunakan modal awal <strong>Rp 200.000.000</strong> untuk melengkapi syarat tim: <strong>2 Mobil, 2 Pembalap, dan Minimal 1 Mekanik</strong>.
       </p>
     </div>
@@ -96,11 +99,11 @@ function upgradeWorkshop() {
     return;
   }
   
-  let upgradeCost = gameData.workshopLevel * 75000000; // Cost: 75jt, 150jt, 225jt...
+  let upgradeCost = gameData.workshopLevel * 75000000;
   if (gameData.cash >= upgradeCost) {
     gameData.cash -= upgradeCost;
     gameData.workshopLevel++;
-    alert(`🎉 Selamat! Bengkel berhasil di-upgrade ke Level ${gameData.workshopLevel}!\nEfisiensi perbaikan & batasan modifikasi meningkat.`);
+    alert(`🎉 Bengkel berhasil di-upgrade ke Level ${gameData.workshopLevel}!\nKecepatan perbaikan durabilitas meningkat.`);
     updateFinancialUI();
     renderGarageCards();
   } else {
@@ -108,28 +111,8 @@ function upgradeWorkshop() {
   }
 }
 
-// Perbaikan Otomatis Durabilitas Mobil Oleh Tim Mekanik Setelah Balapan
-function repairCarsPostRace() {
-  if (gameData.myCars.length === 0) return;
-  if (gameData.myMechanics.length === 0) {
-    alert("⚠️ Perhatian: Kamu tidak memiliki Mekanik! Mobil tidak diperbaiki otomatis setelah balapan.");
-    return;
-  }
-
-  // Formula Perbaikan: (Jumlah Mekanik x 15%) + (Level Bengkel x 5%)
-  let totalMechanicPower = gameData.myMechanics.reduce((acc, m) => acc + (m.engineRating / 10), 0);
-  let repairAmount = Math.floor(totalMechanicPower + (gameData.myMechanics.length * 15) + (gameData.workshopLevel * 5));
-
-  gameData.myCars.forEach(car => {
-    let oldDurability = car.durability || 100;
-    car.durability = Math.min(100, oldDurability + repairAmount);
-  });
-
-  alert(`🛠️ Tim Mekanik (${gameData.myMechanics.length} Orang, Bengkel Lv.${gameData.workshopLevel}) telah selesai merawat mobil.\nDurabilitas dipulihkan sebesar +${repairAmount}%.`);
-}
-
 // ==========================================
-// 3. BURSA KONTRAK DRIVER & MEKANIK (WORK FIX)
+// 3. BURSA KONTRAK DRIVER (SLIDER INTERAKTIF)
 // ==========================================
 function renderDriverCards() {
   const container = document.getElementById("driver-cards-container");
@@ -137,6 +120,10 @@ function renderDriverCards() {
 
   container.innerHTML = INITIAL_DRIVERS.slice(0, 10).map(drv => {
     const isHired = gameData.myDrivers.some(d => d.id === drv.id);
+    const minOffer = Math.floor(drv.salaryPerRace * 0.5);
+    const maxOffer = Math.floor(drv.salaryPerRace * 1.5);
+    const defaultOffer = drv.salaryPerRace;
+
     return `
       <div class="card-item">
         <div>
@@ -147,17 +134,39 @@ function renderDriverCards() {
           <div class="card-stats">
             <div class="stat-row"><span>Agresivitas:</span><span>${drv.aggression}</span></div>
             <div class="stat-row"><span>Konsistensi:</span><span>${drv.consistency}</span></div>
-            <div class="stat-row"><span>Gaji Ekspektasi:</span><span>Rp ${(drv.salaryPerRace / 1000000).toFixed(1)} Jt / Balap</span></div>
+            <div class="stat-row"><span>Ekspektasi Gaji:</span><span>Rp ${(drv.salaryPerRace / 1000000).toFixed(1)} Jt / Balap</span></div>
           </div>
         </div>
-        <div>
-          <div style="font-size:11px; color:#8b949e; margin-bottom:4px;">Tawar Gaji / Balap & Durasi (Min 7 Balap):</div>
-          <div class="nego-box">
-            <input type="number" id="offer-drv-${drv.id}" class="nego-input" value="${drv.salaryPerRace}" step="1000000">
-            <input type="number" id="races-drv-${drv.id}" class="nego-input" style="width:35%" value="7" min="7">
+        
+        <div class="slider-nego-container">
+          <!-- Slider Gaji Per Balap -->
+          <div class="slider-group">
+            <div class="slider-label">
+              <span>Gaji Per Balap:</span>
+              <strong id="val-salary-drv-${drv.id}" style="color:#2ecc71;">Rp ${(defaultOffer / 1000000).toFixed(1)} Jt</strong>
+            </div>
+            <input type="range" class="custom-slider" id="slider-salary-drv-${drv.id}" 
+                   min="${minOffer}" max="${maxOffer}" step="500000" value="${defaultOffer}"
+                   oninput="updateNegoCalc('drv', '${drv.id}')">
           </div>
-          <button class="btn-action" style="margin-top:8px;" ${isHired || gameData.myDrivers.length >= 2 ? 'disabled' : ''} onclick="negoDriver('${drv.id}')">
-            ${isHired ? 'Sudah Dikontrak' : (gameData.myDrivers.length >= 2 ? 'Slot Driver Full (2/2)' : 'Tawar & Kontrak')}
+
+          <!-- Slider Durasi Kontrak (Min 7 Balap) -->
+          <div class="slider-group" style="margin-top: 10px;">
+            <div class="slider-label">
+              <span>Durasi Kontrak:</span>
+              <strong id="val-races-drv-${drv.id}" style="color:#f39c12;">7 Balapan</strong>
+            </div>
+            <input type="range" class="custom-slider" id="slider-races-drv-${drv.id}" 
+                   min="7" max="20" step="1" value="7"
+                   oninput="updateNegoCalc('drv', '${drv.id}')">
+          </div>
+
+          <div class="total-contract-display">
+            Total Kontrak: <span id="total-pay-drv-${drv.id}">Rp ${(defaultOffer * 7).toLocaleString('id-ID')}</span>
+          </div>
+
+          <button class="btn-action" style="margin-top:10px;" ${isHired || gameData.myDrivers.length >= 2 ? 'disabled' : ''} onclick="negoDriver('${drv.id}')">
+            ${isHired ? 'Sudah Dikontrak' : (gameData.myDrivers.length >= 2 ? 'Slot Driver Full (2/2)' : 'Ajukan Kontrak')}
           </button>
         </div>
       </div>
@@ -167,41 +176,42 @@ function renderDriverCards() {
 
 function negoDriver(drvId) {
   const drv = INITIAL_DRIVERS.find(d => d.id === drvId);
-  const offerPerRace = parseInt(document.getElementById(`offer-drv-${drvId}`).value);
-  const raceCount = parseInt(document.getElementById(`races-drv-${drvId}`).value);
+  const offerPerRace = parseInt(document.getElementById(`slider-salary-drv-${drvId}`).value);
+  const raceCount = parseInt(document.getElementById(`slider-races-drv-${drvId}`).value);
 
-  if (raceCount < 7) {
-    alert("❌ Durasi kontrak minimal adalah 7 kali balapan!");
-    return;
-  }
-
-  // Toleransi tawar-menawar (Driver mau jika tawaran >= 85% dari gaji ekspektasi)
   if (offerPerRace >= drv.salaryPerRace * 0.85) {
-    const totalContractPayment = offerPerRace * raceCount;
-    if (gameData.cash >= totalContractPayment) {
-      gameData.cash -= totalContractPayment;
+    const totalPayment = offerPerRace * raceCount;
+    if (gameData.cash >= totalPayment) {
+      gameData.cash -= totalPayment;
       gameData.myDrivers.push({
         ...drv,
         salaryPerRace: offerPerRace,
         remainingRaces: raceCount
       });
-      alert(`✅ Negosiasi Sukses!\n${drv.name} dikontrak selama ${raceCount} balapan dengan gaji Rp ${offerPerRace.toLocaleString('id-ID')}/balap.\nTotal Dibayar di Awal: Rp ${totalContractPayment.toLocaleString('id-ID')}`);
+      alert(`✅ Negosiasi Sukses!\n${drv.name} resmi dikontrak selama ${raceCount} balapan dengan gaji Rp ${offerPerRace.toLocaleString('id-ID')}/balap.\nTotal Bayar: Rp ${totalPayment.toLocaleString('id-ID')}`);
       updateFinancialUI();
       renderDriverCards();
     } else {
-      alert(`❌ Modal kas tidak cukup! Butuh Rp ${totalContractPayment.toLocaleString('id-ID')} untuk kontrak ini.`);
+      alert(`❌ Modal kas tidak cukup! Butuh Rp ${totalPayment.toLocaleString('id-ID')}`);
     }
   } else {
-    alert(`❌ Negosiasi Ditolak!\n${drv.name}: "Tawaran gaji Rp ${offerPerRace.toLocaleString('id-ID')}/balap terlalu rendah dari standar saya!"`);
+    alert(`❌ Negosiasi Ditolak!\n${drv.name}: "Tawaran gaji Rp ${offerPerRace.toLocaleString('id-ID')}/balap terlalu rendah dari standar ekspektasi saya!"`);
   }
 }
 
+// ==========================================
+// 4. BURSA KONTRAK MEKANIK (SLIDER INTERAKTIF)
+// ==========================================
 function renderMechanicCards() {
   const container = document.getElementById("mechanic-cards-container");
   if (!container || typeof MECHANICS_DATA === "undefined") return;
 
   container.innerHTML = MECHANICS_DATA.slice(0, 10).map(mech => {
     const isHired = gameData.myMechanics.some(m => m.id === mech.id);
+    const minOffer = Math.floor(mech.salaryPerRace * 0.5);
+    const maxOffer = Math.floor(mech.salaryPerRace * 1.5);
+    const defaultOffer = mech.salaryPerRace;
+
     return `
       <div class="card-item">
         <div>
@@ -212,17 +222,37 @@ function renderMechanicCards() {
           <div class="card-stats">
             <div class="stat-row"><span>Spesialis:</span><span>${mech.specialty}</span></div>
             <div class="stat-row"><span>Chassis Rating:</span><span>${mech.chassisRating}</span></div>
-            <div class="stat-row"><span>Gaji Ekspektasi:</span><span>Rp ${(mech.salaryPerRace / 1000000).toFixed(1)} Jt / Balap</span></div>
+            <div class="stat-row"><span>Ekspektasi Gaji:</span><span>Rp ${(mech.salaryPerRace / 1000000).toFixed(1)} Jt / Balap</span></div>
           </div>
         </div>
-        <div>
-          <div style="font-size:11px; color:#8b949e; margin-bottom:4px;">Tawar Gaji / Balap & Durasi (Min 7 Balap):</div>
-          <div class="nego-box">
-            <input type="number" id="offer-mech-${mech.id}" class="nego-input" value="${mech.salaryPerRace}" step="1000000">
-            <input type="number" id="races-mech-${mech.id}" class="nego-input" style="width:35%" value="7" min="7">
+        
+        <div class="slider-nego-container">
+          <div class="slider-group">
+            <div class="slider-label">
+              <span>Gaji Per Balap:</span>
+              <strong id="val-salary-mech-${mech.id}" style="color:#2ecc71;">Rp ${(defaultOffer / 1000000).toFixed(1)} Jt</strong>
+            </div>
+            <input type="range" class="custom-slider" id="slider-salary-mech-${mech.id}" 
+                   min="${minOffer}" max="${maxOffer}" step="500000" value="${defaultOffer}"
+                   oninput="updateNegoCalc('mech', '${mech.id}')">
           </div>
-          <button class="btn-action" style="margin-top:8px;" ${isHired ? 'disabled' : ''} onclick="negoMechanic('${mech.id}')">
-            ${isHired ? 'Sudah Dikontrak' : 'Tawar & Kontrak'}
+
+          <div class="slider-group" style="margin-top: 10px;">
+            <div class="slider-label">
+              <span>Durasi Kontrak:</span>
+              <strong id="val-races-mech-${mech.id}" style="color:#f39c12;">7 Balapan</strong>
+            </div>
+            <input type="range" class="custom-slider" id="slider-races-mech-${mech.id}" 
+                   min="7" max="20" step="1" value="7"
+                   oninput="updateNegoCalc('mech', '${mech.id}')">
+          </div>
+
+          <div class="total-contract-display">
+            Total Kontrak: <span id="total-pay-mech-${mech.id}">Rp ${(defaultOffer * 7).toLocaleString('id-ID')}</span>
+          </div>
+
+          <button class="btn-action" style="margin-top:10px;" ${isHired ? 'disabled' : ''} onclick="negoMechanic('${mech.id}')">
+            ${isHired ? 'Sudah Dikontrak' : 'Ajukan Kontrak'}
           </button>
         </div>
       </div>
@@ -232,13 +262,8 @@ function renderMechanicCards() {
 
 function negoMechanic(mechId) {
   const mech = MECHANICS_DATA.find(m => m.id === mechId);
-  const offerPerRace = parseInt(document.getElementById(`offer-mech-${mechId}`).value);
-  const raceCount = parseInt(document.getElementById(`races-mech-${mechId}`).value);
-
-  if (raceCount < 7) {
-    alert("❌ Durasi kontrak minimal adalah 7 kali balapan!");
-    return;
-  }
+  const offerPerRace = parseInt(document.getElementById(`slider-salary-mech-${mechId}`).value);
+  const raceCount = parseInt(document.getElementById(`slider-races-mech-${mechId}`).value);
 
   if (offerPerRace >= mech.salaryPerRace * 0.85) {
     const totalPayment = offerPerRace * raceCount;
@@ -249,7 +274,7 @@ function negoMechanic(mechId) {
         salaryPerRace: offerPerRace,
         remainingRaces: raceCount
       });
-      alert(`✅ Negosiasi Sukses!\nKepala Mekanik ${mech.name} dikontrak selama ${raceCount} balapan.`);
+      alert(`✅ Negosiasi Sukses!\nKepala Mekanik ${mech.name} resmi dikontrak selama ${raceCount} balapan.`);
       updateFinancialUI();
       renderMechanicCards();
     } else {
@@ -260,8 +285,18 @@ function negoMechanic(mechId) {
   }
 }
 
+// HELPER UPDATE SLIDER TEXT & CALCULATOR
+function updateNegoCalc(type, id) {
+  const salaryVal = parseInt(document.getElementById(`slider-salary-${type}-${id}`).value);
+  const raceVal = parseInt(document.getElementById(`slider-races-${type}-${id}`).value);
+
+  document.getElementById(`val-salary-${type}-${id}`).innerText = `Rp ${(salaryVal / 1000000).toFixed(1)} Jt`;
+  document.getElementById(`val-races-${type}-${id}`).innerText = `${raceVal} Balapan`;
+  document.getElementById(`total-pay-${type}-${id}`).innerText = `Rp ${(salaryVal * raceVal).toLocaleString('id-ID')}`;
+}
+
 // ==========================================
-// 4. TOKO MOBIL & GARASI MODIFIKASI
+// 5. TOKO MOBIL & GARASI MODIFIKASI
 // ==========================================
 function renderMarketCards() {
   const container = document.getElementById("market-cards-container");
@@ -293,9 +328,8 @@ function buyCar(carId) {
     gameData.cash -= car.price;
     gameData.myCars.push({
       ...car,
-      instanceId: 'car_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-      durability: 100,
-      installedMods: []
+      instanceId: 'car_' + Date.now(),
+      durability: 100
     });
     alert(`🎉 Berhasil membeli ${car.name}! Sisa modal: Rp ${gameData.cash.toLocaleString('id-ID')}`);
     updateFinancialUI();
@@ -348,17 +382,12 @@ function renderGarageCards() {
 }
 
 function installModToCar(modId) {
-  if (gameData.myCars.length === 0) {
-    alert("Tidak ada mobil di garasi!");
-    return;
-  }
-
+  if (gameData.myCars.length === 0) return;
   const allMods = [...MODS_CATALOG.engine, ...MODS_CATALOG.suspension, ...MODS_CATALOG.transmission];
   const mod = allMods.find(m => m.id === modId);
 
   if (gameData.cash >= mod.cost) {
     gameData.cash -= mod.cost;
-    // Terapkan ke mobil pertama
     let targetCar = gameData.myCars[0];
     if (mod.speedBonus) targetCar.baseSpeed += mod.speedBonus;
     if (mod.handlingBonus) targetCar.baseHandling += mod.handlingBonus;
@@ -371,7 +400,7 @@ function installModToCar(modId) {
 }
 
 // ==========================================
-// 5. KALENDER BALAP RANDOM
+// 6. KALENDER BALAP RANDOM & UTILITY
 // ==========================================
 function generateRandomCalendar() {
   if (typeof TRACKS_DATA === "undefined") return;
@@ -412,9 +441,6 @@ function renderCalendarUI() {
   `).join('');
 }
 
-// ==========================================
-// 6. LIVE LEADERBOARD SIMULATOR (MODERN BADGE)
-// ==========================================
 function updateFinancialUI() {
   const cashEl = document.getElementById("team-cash");
   if (cashEl) cashEl.innerText = `Rp ${gameData.cash.toLocaleString('id-ID')}`;
