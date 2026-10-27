@@ -4,17 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NASCOT Championship Manager</title>
-  <!-- Link CSS Eksternal -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- MODAL POPUP SELEKSI TIM PERTAMA KALI -->
+  <!-- MODAL SELEKSI TIM PERTAMA KALI -->
   <div id="welcome-modal" class="overlay-screen">
     <div class="modal-box">
       <div class="modal-header">
         <h2>🏎️ KEJUARAAN NASCOT GRAND PRIX</h2>
-        <p>Pilih tim yang ingin Anda manajeri untuk memulai musim balap!</p>
+        <p>Pilih tim yang ingin Anda kelola untuk memulai karir manajer!</p>
       </div>
       <div class="modal-body">
         <div id="team-select-container" class="team-select-grid"></div>
@@ -23,7 +22,7 @@
   </div>
 
   <div id="app">
-    <!-- Top Header Status -->
+    <!-- Header Financial & Team Info -->
     <header class="top-bar">
       <div class="brand">
         <span style="font-size: 24px;">🚐</span>
@@ -37,10 +36,6 @@
         <div class="stat-card">
           <span class="lbl">MODAL KAS TIM</span>
           <span class="val" id="team-cash">Rp 200.000.000</span>
-        </div>
-        <div class="stat-card">
-          <span class="lbl">KLASIKEN POIN</span>
-          <span class="val" id="team-points">0 PTS</span>
         </div>
       </div>
     </header>
@@ -57,53 +52,51 @@
     <!-- Main Content Panels -->
     <main class="main-content">
       
-      <!-- TAB DASHBOARD & KALENDER BALAP -->
+      <!-- TAB DASHBOARD & KALENDER -->
       <section id="tab-dashboard" class="tab-panel active">
         <div id="welcome-banner-container"></div>
         <h3 style="margin-bottom: 6px; color: var(--text-white);">📅 Kalender Resmi Grand Prix Musim Ini</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Urutan sirkuit balap yang telah di-random otomatis dari sirkuit pembuka hingga sirkuit final:</p>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Jadwal sirkuit balap yang telah di-random dari sirkuit pembuka hingga final:</p>
         <div id="calendar-container" class="calendar-grid"></div>
       </section>
 
       <!-- TAB GARASI & MODIFIKASI -->
       <section id="tab-garage" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🛠️ Bengkel Modifikasi & Tuning Mobil</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Pasang komponen modifikasi berkategori Card Model untuk meningkatkan performa di lintasan:</p>
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">🛠️ Bengkel Modifikasi & Maintenance</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Upgrade level bengkel dan tingkatkan performa mobil Anda:</p>
         <div id="garage-cards-container" class="cards-grid"></div>
       </section>
 
       <!-- TAB KONTRAK DRIVER -->
       <section id="tab-drivers" class="tab-panel">
         <h3 style="margin-bottom: 6px; color: var(--text-white);">🏎️ Bursa & Negosiasi Driver</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Lakukan tawar-menawar harga per balapan (Minimal kontrak 7x balapan):</p>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Tawar gaji per sekali balap & durasi (Minimum 7x balapan):</p>
         <div id="driver-cards-container" class="cards-grid"></div>
       </section>
 
       <!-- TAB KONTRAK MEKANIK -->
       <section id="tab-mechanics" class="tab-panel">
         <h3 style="margin-bottom: 6px; color: var(--text-white);">👨‍🔧 Bursa & Negosiasi Mekanik</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Rekrut Kepala Mekanik berpengalaman untuk riset dan perawatan sasis/mesin:</p>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Rekrut Mekanik untuk mempercepat perbaikan durabilitas mobil pasca balap:</p>
         <div id="mechanic-cards-container" class="cards-grid"></div>
       </section>
 
       <!-- TAB TOKO MOBIL -->
       <section id="tab-market" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏬 Pembelian Unit Mobil Pertama</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Gunakan modal awal Rp 200.000.000 untuk membeli mobil balap tim Anda:</p>
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏬 Beli Mobil Balap Tim</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Beli maksimal 2 mobil balap awal menggunakan kas tim:</p>
         <div id="market-cards-container" class="cards-grid"></div>
       </section>
 
     </main>
   </div>
 
-  <!-- External Script Database Load -->
+  <!-- External Data Loads -->
   <script src="teams.js"></script>
   <script src="tracks.js"></script>
   <script src="drivers.js"></script>
   <script src="mechanics.js"></script>
   <script src="cars.js"></script>
-
-  <!-- JavaScript Utama -->
   <script src="javascript.js"></script>
 </body>
 </html>
