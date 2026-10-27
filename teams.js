@@ -1,76 +1,18 @@
-/**
- * TEAMS GENERATOR (12 TEAMS x 2 CARS = 24 CARS TOTAL)
- */
-
-const TEAM_PREFIXES = [
-  'Garuda', 'Maju Jaya', 'Siamar', 'Pasundan', 'Priangan', 'Nusantara',
-  'Speed', 'Apex', 'Turbo', 'Overdrive', 'Velocity', 'Sleeper', 'Redline',
-  'Padjadjaran', 'Bumi Siliwangi', 'Priangan Timur', 'Galuh', 'Siliwangi'
+// Database 15 Tim NASCOT (2 mobil & 2 pembalap per tim)
+const TEAMS_DATA = [
+  { id: "team_1", name: "Cicaheum Racing", color: "#2ecc71", secondaryColor: "#f1c40f", isPlayer: true },
+  { id: "team_2", name: "Pangandaran Coastal", color: "#3498db", secondaryColor: "#ecf0f1", isPlayer: false },
+  { id: "team_3", name: "Buitenzorg Motorsport", color: "#27ae60", secondaryColor: "#2c3e50", isPlayer: false },
+  { id: "team_4", name: "Tasik Speed Project", color: "#e74c3c", secondaryColor: "#111111", isPlayer: false },
+  { id: "team_5", name: "Kalapa Express Racing", color: "#e67e22", secondaryColor: "#ffffff", isPlayer: false },
+  { id: "team_6", name: "Dago Peak Performance", color: "#9b59b6", secondaryColor: "#34495e", isPlayer: false },
+  { id: "team_7", name: "Garut Dodol Works", color: "#795548", secondaryColor: "#ffecb3", isPlayer: false },
+  { id: "team_8", name: "Cirebon Coast Line", color: "#00bcd4", secondaryColor: "#ffffff", isPlayer: false },
+  { id: "team_9", name: "Sukabumi Overland", color: "#8bc34a", secondaryColor: "#333333", isPlayer: false },
+  { id: "team_10", name: "Sumedang Tahu Sport", color: "#ff9800", secondaryColor: "#5d4037", isPlayer: false },
+  { id: "team_11", name: "Cianjur Pandan Wangi", color: "#4caf50", secondaryColor: "#81c784", isPlayer: false },
+  { id: "team_12", name: "Subang Pineapple GP", color: "#ffeb3b", secondaryColor: "#388e3c", isPlayer: false },
+  { id: "team_13", name: "Indramayu Mango Speed", color: "#ff5722", secondaryColor: "#ffc107", isPlayer: false },
+  { id: "team_14", name: "Purwakarta Sate Racing", color: "#d32f2f", secondaryColor: "#757575", isPlayer: false },
+  { id: "team_15", name: "Majalengka Wind Force", color: "#607d8b", secondaryColor: "#cfd8dc", isPlayer: false }
 ];
-
-const TEAM_LOCATIONS = [
-  'Bandung', 'Ciamis', 'Tasikmalaya', 'Garut', 'Sukabumi', 'Jakarta',
-  'Surabaya', 'Semarang', 'Jogja', 'Majalengka', 'Sumedang', 'Bogor'
-];
-
-const TEAM_SUFFIXES = [
-  'Racing Team', 'Motorsport', 'Speedworks', 'Garage', 'Tuning Lab',
-  'Engineering', 'Project', 'Performance', 'Squad', 'Racing Club'
-];
-
-const LIVERY_COLORS = [
-  '#00f0ff', '#ff2a5f', '#ffb703', '#10b981', '#a855f7', '#ec4899',
-  '#3b82f6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16', '#eab308'
-];
-
-function getRandomElement(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function generateRandomTeamName() {
-  const prefix = getRandomElement(TEAM_PREFIXES);
-  const location = getRandomElement(TEAM_LOCATIONS);
-  const suffix = getRandomElement(TEAM_SUFFIXES);
-  return `${prefix} ${location} ${suffix}`;
-}
-
-// Generate 12 Tim Balap, Masing-Masing Membawa 2 Mobil & 2 Joki
-function generate12Teams() {
-  const teams = [];
-  const carCatalog = window.CAR_MARKET || [];
-
-  for (let i = 0; i < 12; i++) {
-    const teamName = generateRandomTeamName();
-    const color = LIVERY_COLORS[i % LIVERY_COLORS.length];
-
-    // Setiap tim punya 2 mobil dan 2 joki
-    const carTypeA = getRandomElement(carCatalog);
-    const carTypeB = getRandomElement(carCatalog);
-
-    const driverA = window.generateRandomDriver(`d_${i + 1}_1`);
-    const driverB = window.generateRandomDriver(`d_${i + 1}_2`);
-
-    teams.push({
-      id: `team_${i + 1}`,
-      teamName: teamName,
-      liveryColor: color,
-      cars: [
-        {
-          carNumber: (i + 1) * 2 - 1,
-          model: carTypeA ? carTypeA.name : 'Toyota Avanza Veloz',
-          topSpeed: carTypeA ? carTypeA.baseSpeed : 140,
-          driver: driverA
-        },
-        {
-          carNumber: (i + 1) * 2,
-          model: carTypeB ? carTypeB.name : 'Honda Civic Type R',
-          topSpeed: carTypeB ? carTypeB.baseSpeed : 235,
-          driver: driverB
-        }
-      ]
-    });
-  }
-  return teams;
-}
-
-window.generate12Teams = generate12Teams;
