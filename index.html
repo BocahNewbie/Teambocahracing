@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NASCOT Championship Manager</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Style Tambahan untuk Podium & Klasemen */
+    .podium-container {
+      display: flex; justify-content: center; align-items: flex-end; gap: 15px; margin: 20px 0;
+    }
+    .podium-step {
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+      border-radius: 8px 8px 0 0; padding: 10px; color: #fff; font-weight: bold; width: 120px;
+    }
+    .podium-1 { height: 160px; background: linear-gradient(180deg, #f1c40f, #b7950b); order: 2; }
+    .podium-2 { height: 120px; background: linear-gradient(180deg, #bdc3c7, #7f8c8d); order: 1; }
+    .podium-3 { height: 90px; background: linear-gradient(180deg, #e67e22, #d35400); order: 3; }
+  </style>
 </head>
 <body>
 
@@ -17,6 +30,22 @@
       </div>
       <div class="modal-body">
         <div id="team-select-container" class="team-select-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL POPUP PODIUM SELESAI BALAPAN -->
+  <div id="podium-modal" class="overlay-screen" style="display: none;">
+    <div class="modal-box" style="max-width: 600px; text-align: center;">
+      <div class="modal-header">
+        <h2>🏆 PODIUM JUARA GRAND PRIX 🏆</h2>
+        <p id="podium-track-name">Sirkuit Balap</p>
+      </div>
+      <div class="modal-body">
+        <div class="podium-container" id="podium-winners-display">
+          <!-- Diisi via JS -->
+        </div>
+        <button class="btn-action" style="margin-top: 15px;" onclick="closePodiumAndShowStandings()">Lihat Klasemen Poin Grand Prix 📊</button>
       </div>
     </div>
   </div>
@@ -47,6 +76,7 @@
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Kalender & Musim</button>
+      <button class="tab-btn" onclick="switchTab('tab-standings')">🏆 Klasemen GP</button>
       <button class="tab-btn" onclick="switchTab('tab-garage')">🛠️ Garasi & Modifikasi</button>
       <button class="tab-btn" onclick="switchTab('tab-drivers')">🏎️ Kontrak Driver</button>
       <button class="tab-btn" onclick="switchTab('tab-mechanics')">👨‍🔧 Kontrak Mekanik</button>
@@ -61,11 +91,10 @@
       <section id="tab-dashboard" class="tab-panel active">
         <div id="welcome-banner-container"></div>
         
-        <!-- Action Control Season -->
         <div style="background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
           <div>
             <h3 style="color: #fff; margin-bottom: 4px;">🚀 Kontrol Waktu & Kalender</h3>
-            <p style="color: #8b949e; font-size: 12px;">Pastikan kamu sudah memiliki 2 Mobil, 2 Pembalap, dan minimal 1 Mekanik sebelum memulai musim!</p>
+            <p style="color: #8b949e; font-size: 12px;">Lengkapi 2 Mobil, 2 Pembalap, dan minimal 1 Mekanik sebelum memulai musim!</p>
           </div>
           <div style="display: flex; gap: 10px;">
             <button id="btn-start-season" class="btn-action" style="background: #238636; width: auto; padding: 10px 20px; font-size: 15px;" onclick="startSeason()">▶️ MULAI MUSIM BALAP</button>
@@ -76,6 +105,42 @@
         <h3 style="margin-bottom: 6px; color: var(--text-white);">📅 Kalender Resmi Grand Prix Musim Ini</h3>
         <p style="color: var(--text-muted); margin-bottom: 15px;">Jadwal sirkuit balap yang telah di-random dari sirkuit pembuka hingga final:</p>
         <div id="calendar-container" class="calendar-grid"></div>
+      </section>
+
+      <!-- TAB KLASEMEN GRAND PRIX -->
+      <section id="tab-standings" class="tab-panel">
+        <h3 style="margin-bottom: 10px; color: var(--text-white);">🏆 Klasemen Poin Kejuaraan Grand Prix</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <!-- Klasemen Pembalap -->
+          <div class="panel-box">
+            <h4 style="color: #f39c12; margin-bottom: 10px;">🏎️ Klasemen Pembalap</h4>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>POS</th>
+                  <th>PEMBALAP</th>
+                  <th>TIM</th>
+                  <th>POIN</th>
+                </tr>
+              </thead>
+              <tbody id="driver-standings-body"></tbody>
+            </table>
+          </div>
+          <!-- Klasemen Tim/Konstruktor -->
+          <div class="panel-box">
+            <h4 style="color: #2ecc71; margin-bottom: 10px;">🛡️ Klasemen Tim / Konstruktor</h4>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>POS</th>
+                  <th>TIM</th>
+                  <th>POIN</th>
+                </tr>
+              </thead>
+              <tbody id="team-standings-body"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- TAB GARASI & MODIFIKASI -->
@@ -122,7 +187,6 @@
           </div>
         </div>
 
-        <!-- Live Leaderboard Table -->
         <div class="panel-box" style="padding:0; overflow:hidden;">
           <div style="padding: 12px 15px; background: #21262d; display:flex; justify-content:space-between;">
             <span id="race-lap-counter" style="font-weight:bold; color:#fff;">LAP 1 / 20</span>
@@ -140,9 +204,7 @@
                 <th>BEST LAP</th>
               </tr>
             </thead>
-            <tbody id="timing-tower-body">
-              <!-- Live data dari JS -->
-            </tbody>
+            <tbody id="timing-tower-body"></tbody>
           </table>
         </div>
       </section>
