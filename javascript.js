@@ -22,7 +22,7 @@ let stageResults = { stage1: false, stage2: false };
 
 // Standard Points System NASCAR Cup Series (Top 40)
 const NASCAR_POINTS = [40, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-const STAGE_BONUS_POINTS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]; // Poin bonus Stage 1 & 2
+const STAGE_BONUS_POINTS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 // ==========================================
 // INITIALIZATION ON LOAD
@@ -62,6 +62,13 @@ function getTeamById(teamId) {
     return TEAMS_DATA.find(t => t.id === teamId) || null;
   }
   return null;
+}
+
+// Helper Menentukan Warna Berdasarkan Persentase Aus Ban
+function getTireColor(wearPercent) {
+  if (wearPercent > 70) return "#2ecc71"; // Hijau
+  if (wearPercent > 35) return "#f1c40f"; // Kuning
+  return "#e74c3c"; // Merah
 }
 
 // ==========================================
@@ -134,7 +141,6 @@ function setupRaceCars() {
   raceCars = [];
   let driverRoster = [];
 
-  // Filter dan petakan maksimal 2 driver per tim dari TEAMS_DATA
   if (typeof TEAMS_DATA !== "undefined" && typeof INITIAL_DRIVERS !== "undefined") {
     TEAMS_DATA.forEach(team => {
       const teamDrivers = INITIAL_DRIVERS.filter(d => d.teamId === team.id).slice(0, 2);
@@ -148,7 +154,6 @@ function setupRaceCars() {
     }));
   }
 
-  // Inisialisasi Kondisi Fisik & Telemetri Mobil
   raceCars = driverRoster.map((driver, index) => {
     const teamObj = getTeamById(driver.teamId);
     const isPlayer = teamObj ? teamObj.isPlayer : (index === 0 || index === 1);
@@ -163,25 +168,25 @@ function setupRaceCars() {
       isTeamCar: isPlayer,
       distanceCovered: 0,
       currentLap: 1,
+      currentPosition: index + 1,
       baseSpeed: 100 + Math.random() * 15,
-      strategy: 'neutral', // 'push', 'neutral', 'save'
+      strategy: 'neutral',
       
-      // TELEMETRI MOBIL REAL-TIME (NASCAR SPEC)
-      fuel: 100.0,             // Persentase Bensin (100%)
-      engineTemp: 85.0,        // Celcius (Overheat > 120°C)
-      engineHealth: 100.0,     // Kesehatan Mesin (%)
-      bodyHealth: 100.0,       // Keausan Aerodinamis / Bodi (%)
-      suspensionHealth: 100.0, // Ketahanan Suspensi (%)
+      fuel: 100.0,
+      engineTemp: 85.0,
+      engineHealth: 100.0,
+      bodyHealth: 100.0,
+      suspensionHealth: 100.0,
       tires: {
-        FL: 100.0, // Front Left (%)
-        FR: 100.0, // Front Right (%)
-        RL: 100.0, // Rear Left (%)
-        RR: 100.0  // Rear Right (%)
+        FL: 100.0,
+        FR: 100.0,
+        RL: 100.0,
+        RR: 100.0
       },
       
       inPit: false,
       pitTimer: 0,
-      status: "RUNNING", // "RUNNING", "IN PIT", "DNF"
+      status: "RUNNING",
       lastLapTime: 0,
       bestLapTime: null,
       lapStartTime: Date.now(),
@@ -191,7 +196,7 @@ function setupRaceCars() {
 }
 
 // ==========================================
-// LIVE RACE ENGINE (SIMULASI NASCAR)
+// LIVE RACE ENGINE (SIMULASI NASCAR & KONTROL PAUSE)
 // ==========================================
 function setupEventListeners() {
   const btnStart = document.getElementById("btn-start-race");
@@ -212,21 +217,43 @@ function setSimSpeed(speed, evt) {
   btns.forEach(b => b.classList.remove("active"));
   if (evt && evt.target) evt.target.classList.add("active");
 
-  if (gameData.isRacing) {
+  if (gameData.isRacing && !gameData.isPaused) {
     clearInterval(gameData.raceInterval);
     gameData.raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
   }
 }
 
+function togglePauseRace() {
+  if (!gameData.isRacing) return;
+
+  const btnPause = document.getElementById("btn-pause-race");
+  const raceStatus = document.getElementById("race-status");
+
+  if (gameData.isPaused) {
+    gameData.isPaused = false;
+    if (btnPause) btnPause.innerText = "⏸️ PAUSE";
+    if (raceStatus) raceStatus.innerText = "GREEN FLAG 🟢";
+    gameData.raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
+  } else {
+    gameData.isPaused = true;
+    clearInterval(gameData.raceInterval);
+    if (btnPause) btnPause.innerText = "▶️ RESUME";
+    if (raceStatus) raceStatus.innerText = "YELLOW FLAG (PAUSED) 🟡";
+  }
+}
+
 function startRace() {
   gameData.isRacing = true;
+  gameData.isPaused = false;
   currentLapGlobal = 1;
   stageResults = { stage1: false, stage2: false };
 
   const btnStart = document.getElementById("btn-start-race");
+  const btnPause = document.getElementById("btn-pause-race");
   const raceStatus = document.getElementById("race-status");
 
   if (btnStart) btnStart.innerText = "⏹️ HENTIKAN BALAPAN";
+  if (btnPause) { btnPause.style.display = "inline-block"; btnPause.innerText = "⏸️ PAUSE"; }
   if (raceStatus) raceStatus.innerText = "GREEN FLAG 🟢";
 
   setupRaceCars();
@@ -237,12 +264,15 @@ function startRace() {
 
 function stopRace() {
   gameData.isRacing = false;
+  gameData.isPaused = false;
   clearInterval(gameData.raceInterval);
 
   const btnStart = document.getElementById("btn-start-race");
+  const btnPause = document.getElementById("btn-pause-race");
   const raceStatus = document.getElementById("race-status");
 
   if (btnStart) btnStart.innerText = "🟢 MULAI BALAPAN";
+  if (btnPause) btnPause.style.display = "none";
   if (raceStatus) raceStatus.innerText = "CHECKERED FLAG 🏁";
 
   calculateFinalNascarPoints();
@@ -250,10 +280,16 @@ function stopRace() {
 
 // LOOP UTAMA SIMULASI BALAP
 function updateRaceLogic() {
+  if (gameData.isPaused) return;
+
   let raceFinished = true;
 
-  // Sorting Posisi Lintasan untuk Fitur Drafting / Slipstream
+  // Sorting Posisi Lintasan untuk Drafting & Peringkat Driver
   let sortedPositions = [...raceCars].sort((a, b) => b.distanceCovered - a.distanceCovered);
+
+  sortedPositions.forEach((car, posIdx) => {
+    car.currentPosition = posIdx + 1; // Update posisi real-time
+  });
 
   raceCars.forEach(car => {
     if (car.status === "DNF") return;
@@ -261,7 +297,6 @@ function updateRaceLogic() {
     if (car.currentLap <= totalLaps) {
       raceFinished = false;
 
-      // Handle Jika Mobil Sedang Pit Stop
       if (car.inPit) {
         car.pitTimer -= (0.1 * gameData.simSpeed);
         if (car.pitTimer <= 0) {
@@ -271,36 +306,29 @@ function updateRaceLogic() {
         return;
       }
 
-      // 1. Kalkulasi Efek Keausan & Modifikator Kecepatan
       let avgTireWear = (car.tires.FL + car.tires.FR + car.tires.RL + car.tires.RR) / 4;
-      let tireGripFactor = avgTireWear / 100; // Aus ban mengurangi handling
-      let aeroFactor = car.bodyHealth / 100;  // Kerusakan bodi mengurangi top speed
+      let tireGripFactor = avgTireWear / 100;
+      let aeroFactor = car.bodyHealth / 100;
       let engineFactor = car.engineHealth / 100;
 
-      // 2. Multiplier Strategi Pit Wall
       let stratMultiplier = 1.0;
       let wearMultiplier = 1.0;
       if (car.strategy === 'push') { stratMultiplier = 1.12; wearMultiplier = 1.8; }
       if (car.strategy === 'save') { stratMultiplier = 0.88; wearMultiplier = 0.5; }
 
-      // 3. Efek NASCAR Drafting (Slipstream jika mengekor < 50 unit)
       let draftingBonus = 1.0;
       let carIndex = sortedPositions.findIndex(c => c.id === car.id);
       if (carIndex > 0) {
         let carAhead = sortedPositions[carIndex - 1];
         let gapToAhead = carAhead.distanceCovered - car.distanceCovered;
         if (gapToAhead > 0 && gapToAhead < 50) {
-          draftingBonus = 1.06; // Bonus kecepatan 6% dari drafting
+          draftingBonus = 1.06;
         }
       }
 
-      // Hitung Kecepatan Akhir Simulasi
       let currentSpeed = car.baseSpeed * stratMultiplier * tireGripFactor * aeroFactor * engineFactor * draftingBonus;
 
-      // Habis Bensin / Engine Breakdown Risk
-      if (car.fuel <= 0) {
-        currentSpeed *= 0.3; // Berjalan lambat menuju pit
-      }
+      if (car.fuel <= 0) currentSpeed *= 0.3;
       if (car.engineTemp > 120 || car.engineHealth <= 0) {
         car.status = "DNF";
         return;
@@ -308,17 +336,15 @@ function updateRaceLogic() {
 
       car.distanceCovered += (currentSpeed * 0.1);
 
-      // 4. Update Simulasi Degradasi Fisik (Bensin, Ban, Suhu)
       car.fuel = Math.max(0, car.fuel - (0.05 * wearMultiplier));
       car.tires.FL = Math.max(0, car.tires.FL - (0.06 * wearMultiplier));
-      car.tires.FR = Math.max(0, car.tires.FR - (0.08 * wearMultiplier)); // Ban kanan depan lebih cepat aus di trek oval
+      car.tires.FR = Math.max(0, car.tires.FR - (0.08 * wearMultiplier));
       car.tires.RL = Math.max(0, car.tires.RL - (0.05 * wearMultiplier));
       car.tires.RR = Math.max(0, car.tires.RR - (0.07 * wearMultiplier));
 
       if (car.strategy === 'push') car.engineTemp = Math.min(125, car.engineTemp + 0.15);
       else car.engineTemp = Math.max(85, car.engineTemp - 0.1);
 
-      // 5. Cek Penyelesaian Lap
       let calculatedLap = Math.floor(car.distanceCovered / 1000) + 1;
       if (calculatedLap > car.currentLap && car.currentLap <= totalLaps) {
         let now = Date.now();
@@ -333,15 +359,11 @@ function updateRaceLogic() {
     }
   });
 
-  // Update Lap Global Utama
   if (sortedPositions[0]) {
     currentLapGlobal = Math.min(sortedPositions[0].currentLap, totalLaps);
   }
 
-  // Check Point Stage NASCAR (Stage 1 & Stage 2)
   checkNascarStagePoints(sortedPositions);
-
-  // Update Tampilan UI
   updateTimingTower(sortedPositions);
   updateLiveTelemetryUI();
 
@@ -351,19 +373,17 @@ function updateRaceLogic() {
 }
 
 // ==========================================
-// STAGE RACING SYSTEM (NASCAR SPEC)
+// STAGE RACING SYSTEM
 // ==========================================
 function checkNascarStagePoints(sortedCars) {
   const raceStatus = document.getElementById("race-status");
 
-  // STAGE 1 END
   if (currentLapGlobal >= stage1Lap && !stageResults.stage1) {
     stageResults.stage1 = true;
     awardStagePoints(sortedCars, "STAGE 1");
     if (raceStatus) raceStatus.innerText = "STAGE 1 COMPLETE 🟡";
   }
 
-  // STAGE 2 END
   if (currentLapGlobal >= stage2Lap && !stageResults.stage2) {
     stageResults.stage2 = true;
     awardStagePoints(sortedCars, "STAGE 2");
@@ -388,7 +408,7 @@ function calculateFinalNascarPoints() {
 }
 
 // ==========================================
-// UI TIMING TOWER & PIT WALL CONTROL
+// UI TIMING TOWER & PIT WALL TELEMETRY
 // ==========================================
 function updateTimingTower(sortedCars) {
   const tbody = document.getElementById("timing-tower-body");
@@ -421,15 +441,15 @@ function updateTimingTower(sortedCars) {
   }
 }
 
-// Render Panel Kontrol & Telemetri Realtime di Pit Wall
 function renderPitWallTelemetryUI() {
   const panel = document.querySelector(".pit-wall-panel");
   if (!panel) return;
 
   panel.innerHTML = `
     <h3>Pit Wall Control & Telemetry</h3>
-    <div class="sim-speed-controls" style="margin-bottom: 15px;">
-      <label style="font-size: 12px; margin-right: 8px;">Kecepatan Simulasi: </label>
+    <div class="sim-speed-controls" style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+      <button id="btn-pause-race" class="btn-strat" style="display:none; background:#d35400; font-weight:bold;" onclick="togglePauseRace()">⏸️ PAUSE</button>
+      <span style="font-size: 11px; color:#8b949e; margin-left: 5px;">Kecepatan:</span>
       <button class="btn-strat btn-speed" onclick="setSimSpeed(0.5, event)">0.5x</button>
       <button class="btn-strat btn-speed active" onclick="setSimSpeed(1.0, event)">1x</button>
       <button class="btn-strat btn-speed" onclick="setSimSpeed(2.0, event)">2x</button>
@@ -439,7 +459,7 @@ function renderPitWallTelemetryUI() {
   `;
 }
 
-// Update Kondisi Fisik Mobil Real-Time pada UI
+// Visualisasi Siluet Mobil 2D & Telemetri Realtime
 function updateLiveTelemetryUI() {
   const container = document.getElementById("telemetry-drivers-container");
   if (!container) return;
@@ -450,38 +470,64 @@ function updateLiveTelemetryUI() {
     return;
   }
 
-  container.innerHTML = teamCars.map((car) => `
-    <div class="driver-control" style="background: #1c2128; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #30363d;">
-      <h4 style="color:${car.teamColor}">Mobil #${car.number} - ${car.driverName} (${car.status})</h4>
-      
-      <!-- Telemetri Fisik -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; margin: 8px 0;">
-        <div><strong>Bensin:</strong> <span style="color:${car.fuel < 20 ? '#e74c3c' : '#2ecc71'}">${car.fuel.toFixed(1)}%</span></div>
-        <div><strong>Suhu Mesin:</strong> <span style="color:${car.engineTemp > 105 ? '#e74c3c' : '#f1c40f'}">${car.engineTemp.toFixed(1)}°C</span></div>
-        <div><strong>Kondisi Mesin:</strong> ${car.engineHealth.toFixed(0)}%</div>
-        <div><strong>Bodi / Aero:</strong> ${car.bodyHealth.toFixed(0)}%</div>
-      </div>
+  container.innerHTML = teamCars.map((car) => {
+    const colFL = getTireColor(car.tires.FL);
+    const colFR = getTireColor(car.tires.FR);
+    const colRL = getTireColor(car.tires.RL);
+    const colRR = getTireColor(car.tires.RR);
 
-      <!-- Detail Keausan 4 Ban -->
-      <div style="font-size: 10px; background: #0d1117; padding: 6px; border-radius: 4px; margin-bottom: 8px;">
-        <strong>Kondisi Ban:</strong>
-        <div style="display: flex; justify-content: space-between; margin-top: 3px;">
-          <span>FL: ${car.tires.FL.toFixed(0)}%</span>
-          <span>FR: ${car.tires.FR.toFixed(0)}%</span>
-          <span>RL: ${car.tires.RL.toFixed(0)}%</span>
-          <span>RR: ${car.tires.RR.toFixed(0)}%</span>
+    return `
+      <div class="driver-control" style="background: #161b22; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #30363d;">
+        <!-- Header Driver & Posisi Balap -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="color:${car.teamColor}; margin:0;">Mobil #${car.number} - ${car.driverName}</h4>
+          <span style="background: #f39c12; color: #111; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px;">
+            POS #${car.currentPosition}
+          </span>
+        </div>
+        
+        <!-- Grid LayOut: Siluet Mobil & Telemetri -->
+        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
+          
+          <!-- Visual Siluet Mobil 2D & 4 Ban -->
+          <div style="position: relative; width: 70px; height: 110px; background: #0d1117; border: 2px solid #30363d; border-radius: 10px; flex-shrink: 0; display: flex; justify-content: center; align-items: center;">
+            <div style="font-size: 8px; color: #555; font-weight: bold;">FRONT</div>
+            
+            <!-- Ban FL (Front Left) -->
+            <div title="Front Left: ${car.tires.FL.toFixed(0)}%" style="position: absolute; top: 10px; left: -8px; width: 10px; height: 22px; background: ${colFL}; border-radius: 3px; border: 1px solid #000;"></div>
+            <!-- Ban FR (Front Right) -->
+            <div title="Front Right: ${car.tires.FR.toFixed(0)}%" style="position: absolute; top: 10px; right: -8px; width: 10px; height: 22px; background: ${colFR}; border-radius: 3px; border: 1px solid #000;"></div>
+            <!-- Ban RL (Rear Left) -->
+            <div title="Rear Left: ${car.tires.RL.toFixed(0)}%" style="position: absolute; bottom: 10px; left: -8px; width: 10px; height: 22px; background: ${colRL}; border-radius: 3px; border: 1px solid #000;"></div>
+            <!-- Ban RR (Rear Right) -->
+            <div title="Rear Right: ${car.tires.RR.toFixed(0)}%" style="position: absolute; bottom: 10px; right: -8px; width: 10px; height: 22px; background: ${colRR}; border-radius: 3px; border: 1px solid #000;"></div>
+          </div>
+
+          <!-- Telemetri Angka / Statistik -->
+          <div style="flex: 1; font-size: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <div>Bensin: <strong style="color:${car.fuel < 20 ? '#e74c3c' : '#2ecc71'}">${car.fuel.toFixed(1)}%</strong></div>
+            <div>Suhu: <strong style="color:${car.engineTemp > 105 ? '#e74c3c' : '#f1c40f'}">${car.engineTemp.toFixed(1)}°C</strong></div>
+            <div>Mesin: <strong>${car.engineHealth.toFixed(0)}%</strong></div>
+            <div>Bodi: <strong>${car.bodyHealth.toFixed(0)}%</strong></div>
+            <div style="grid-column: span 2; font-size: 10px; color: #8b949e; margin-top: 3px;">
+              FL: <span style="color:${colFL}">${car.tires.FL.toFixed(0)}%</span> | 
+              FR: <span style="color:${colFR}">${car.tires.FR.toFixed(0)}%</span> | 
+              RL: <span style="color:${colRL}">${car.tires.RL.toFixed(0)}%</span> | 
+              RR: <span style="color:${colRR}">${car.tires.RR.toFixed(0)}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tombol Intervensi Strategi -->
+        <div style="display: flex; gap: 4px;">
+          <button class="btn-strat ${car.strategy === 'push' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'push', event)">🔥 Push</button>
+          <button class="btn-strat ${car.strategy === 'neutral' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'neutral', event)">⚖️ Neutral</button>
+          <button class="btn-strat ${car.strategy === 'save' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'save', event)">🌱 Save</button>
+          <button class="btn-pit" onclick="callPitStop(${car.number})" ${car.inPit ? 'disabled' : ''}>🔧 BOX (PIT)</button>
         </div>
       </div>
-
-      <!-- Tombol Strategi & Pit Stop -->
-      <div>
-        <button class="btn-strat ${car.strategy === 'push' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'push', event)">🔥 Push</button>
-        <button class="btn-strat ${car.strategy === 'neutral' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'neutral', event)">⚖️ Neutral</button>
-        <button class="btn-strat ${car.strategy === 'save' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'save', event)">🌱 Save</button>
-        <button class="btn-pit" onclick="callPitStop(${car.number})" ${car.inPit ? 'disabled' : ''}>🔧 BOX (PIT)</button>
-      </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 // ==========================================
@@ -505,15 +551,14 @@ function callPitStop(carNum) {
   if (targetCar && gameData.isRacing && !targetCar.inPit) {
     targetCar.inPit = true;
     targetCar.status = "IN PIT";
-    targetCar.pitTimer = 12; // Waktu Pit Stop 12 detik
+    targetCar.pitTimer = 12;
 
-    // Refill Bensin & Ban Baru
     targetCar.fuel = 100.0;
     targetCar.tires.FL = 100.0;
     targetCar.tires.FR = 100.0;
     targetCar.tires.RL = 100.0;
     targetCar.tires.RR = 100.0;
-    targetCar.engineTemp = 85.0; // Dinginkan mesin
+    targetCar.engineTemp = 85.0;
 
     alert(`Mobil #${carNum} (${targetCar.driverName}) masuk Pit Stop! Refill Bensin & Ganti 4 Ban Baru.`);
   }
