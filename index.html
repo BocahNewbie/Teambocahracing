@@ -22,7 +22,7 @@
   </div>
 
   <div id="app">
-    <!-- Header Financial & Team Info -->
+    <!-- Header Financial & Status -->
     <header class="top-bar">
       <div class="brand">
         <span style="font-size: 24px;">🚐</span>
@@ -30,23 +30,28 @@
       </div>
       <div class="financial-status">
         <div class="stat-card">
+          <span class="lbl">TANGGAL SEKARANG</span>
+          <span class="val highlight" id="current-game-date">1 Jun 2026</span>
+        </div>
+        <div class="stat-card">
           <span class="lbl">TIM PILIHAN</span>
           <span class="val highlight" id="player-team-name">-</span>
         </div>
         <div class="stat-card">
           <span class="lbl">MODAL KAS TIM</span>
-          <span class="val" id="team-cash">Rp 200.000.000</span>
+          <span class="val" id="team-cash">Rp 500.000.000</span>
         </div>
       </div>
     </header>
 
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Dashboard & Kalender</button>
+      <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Kalender & Musim</button>
       <button class="tab-btn" onclick="switchTab('tab-garage')">🛠️ Garasi & Modifikasi</button>
       <button class="tab-btn" onclick="switchTab('tab-drivers')">🏎️ Kontrak Driver</button>
       <button class="tab-btn" onclick="switchTab('tab-mechanics')">👨‍🔧 Kontrak Mekanik</button>
       <button class="tab-btn" onclick="switchTab('tab-market')">🏬 Beli Mobil Awal</button>
+      <button class="tab-btn" id="btn-tab-race" onclick="switchTab('tab-race')">🏁 Live Race</button>
     </nav>
 
     <!-- Main Content Panels -->
@@ -55,6 +60,19 @@
       <!-- TAB DASHBOARD & KALENDER -->
       <section id="tab-dashboard" class="tab-panel active">
         <div id="welcome-banner-container"></div>
+        
+        <!-- Action Control Season -->
+        <div style="background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h3 style="color: #fff; margin-bottom: 4px;">🚀 Kontrol Waktu & Kalender</h3>
+            <p style="color: #8b949e; font-size: 12px;">Pastikan kamu sudah memiliki 2 Mobil, 2 Pembalap, dan minimal 1 Mekanik sebelum memulai musim!</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button id="btn-start-season" class="btn-action" style="background: #238636; width: auto; padding: 10px 20px; font-size: 15px;" onclick="startSeason()">▶️ MULAI MUSIM BALAP</button>
+            <button id="btn-next-day" class="btn-action" style="background: #1f6feb; width: auto; padding: 10px 20px; font-size: 15px; display: none;" onclick="advanceCalendarDay()">⏩ MAJU 1 HARI</button>
+          </div>
+        </div>
+
         <h3 style="margin-bottom: 6px; color: var(--text-white);">📅 Kalender Resmi Grand Prix Musim Ini</h3>
         <p style="color: var(--text-muted); margin-bottom: 15px;">Jadwal sirkuit balap yang telah di-random dari sirkuit pembuka hingga final:</p>
         <div id="calendar-container" class="calendar-grid"></div>
@@ -88,10 +106,50 @@
         <div id="market-cards-container" class="cards-grid"></div>
       </section>
 
+      <!-- TAB LIVE RACE SIMULATOR -->
+      <section id="tab-race" class="tab-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 15px;">
+          <div>
+            <h2 id="race-track-name" style="color: #f39c12;">🏁 Grand Prix Circuit</h2>
+            <span id="race-status" style="color: #2ecc71; font-weight: bold;">READY</span>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button id="btn-toggle-race" class="btn-action" style="width: auto; padding: 8px 18px;" onclick="toggleRaceEngine()">🟢 MULAI START BALAPAN</button>
+            <span style="font-size: 11px; color:#8b949e;">Kecepatan:</span>
+            <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(1.0)">1x</button>
+            <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(2.0)">2x</button>
+            <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(5.0)">5x</button>
+          </div>
+        </div>
+
+        <!-- Live Leaderboard Table -->
+        <div class="panel-box" style="padding:0; overflow:hidden;">
+          <div style="padding: 12px 15px; background: #21262d; display:flex; justify-content:space-between;">
+            <span id="race-lap-counter" style="font-weight:bold; color:#fff;">LAP 1 / 20</span>
+            <span style="font-size:12px; color:#8b949e;">LIVE TIMING TOWER</span>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">POS</th>
+                <th style="width: 180px;">TIM & BADGE</th>
+                <th>PEMBALAP</th>
+                <th>GAP / TOTAL</th>
+                <th>INTERVAL</th>
+                <th>LAST LAP</th>
+                <th>BEST LAP</th>
+              </tr>
+            </thead>
+            <tbody id="timing-tower-body">
+              <!-- Live data dari JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </main>
   </div>
 
-  <!-- External Data Loads -->
   <script src="teams.js"></script>
   <script src="tracks.js"></script>
   <script src="drivers.js"></script>
