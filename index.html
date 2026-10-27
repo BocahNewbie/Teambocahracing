@@ -93,35 +93,57 @@
       </section>
 
       <!-- TAB BALAPAN LIVE -->
-      <section id="tab-race" class="tab-panel">
-        <div class="race-header">
-          <select id="select-track"></select>
-          <button id="btn-start-race" class="btn-action">🟢 MULAI BALAPAN LIVE</button>
-        </div>
-        <div class="race-container">
-          <!-- Canvas Top-Down 3D/2D View -->
-          <canvas id="raceCanvas" width="850" height="520"></canvas>
-          
-          <!-- Pit Wall Strategy Controller -->
-          <div class="pit-wall-panel">
-            <h3>Pit Wall Control</h3>
-            <div class="driver-control">
-              <h4>Mobil #1 Strategy</h4>
-              <button class="btn-strat" onclick="setStrategy(1, 'push')">🔥 Push Hard</button>
-              <button class="btn-strat active" onclick="setStrategy(1, 'neutral')">⚖️ Neutral</button>
-              <button class="btn-strat" onclick="setStrategy(1, 'save')">🌱 Save Tires</button>
-              <button class="btn-pit" onclick="callPitStop(1)">🔧 BOX THIS LAP</button>
-            </div>
-            <div class="driver-control">
-              <h4>Mobil #2 Strategy</h4>
-              <button class="btn-strat" onclick="setStrategy(2, 'push')">🔥 Push Hard</button>
-              <button class="btn-strat active" onclick="setStrategy(2, 'neutral')">⚖️ Neutral</button>
-              <button class="btn-strat" onclick="setStrategy(2, 'save')">🌱 Save Tires</button>
-              <button class="btn-pit" onclick="callPitStop(2)">🔧 BOX THIS LAP</button>
-            </div>
-          </div>
-        </div>
-      </section>
+<section id="tab-race" class="tab-panel">
+  <div class="race-header">
+    <select id="select-track"></select>
+    <button id="btn-start-race" class="btn-action">🟢 MULAI BALAPAN</button>
+  </div>
+  
+  <div class="race-container">
+    <!-- Timing Tower / Live Leaderboard -->
+    <div class="timing-tower-panel">
+      <div class="race-info-bar">
+        <span id="race-lap-counter">LAP 0 / 15</span>
+        <span id="race-status">READY</span>
+      </div>
+      <table class="data-table timing-table">
+        <thead>
+          <tr>
+            <th>POS</th>
+            <th>NO</th>
+            <th>PEMBALAP</th>
+            <th>TIM</th>
+            <th>GAP</th>
+            <th>LAST LAP</th>
+            <th>BEST LAP</th>
+          </tr>
+        </thead>
+        <tbody id="timing-tower-body">
+          <!-- Data baris balapan diisi via JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pit Wall Strategy Controller -->
+    <div class="pit-wall-panel">
+      <h3>Pit Wall Control</h3>
+      <div class="driver-control">
+        <h4>Mobil #1 Strategy</h4>
+        <button class="btn-strat" onclick="setStrategy(1, 'push')">🔥 Push Hard</button>
+        <button class="btn-strat active" onclick="setStrategy(1, 'neutral')">⚖️ Neutral</button>
+        <button class="btn-strat" onclick="setStrategy(1, 'save')">🌱 Save Tires</button>
+        <button class="btn-pit" onclick="callPitStop(1)">🔧 BOX THIS LAP</button>
+      </div>
+      <div class="driver-control">
+        <h4>Mobil #2 Strategy</h4>
+        <button class="btn-strat" onclick="setStrategy(2, 'push')">🔥 Push Hard</button>
+        <button class="btn-strat active" onclick="setStrategy(2, 'neutral')">⚖️ Neutral</button>
+        <button class="btn-strat" onclick="setStrategy(2, 'save')">🌱 Save Tires</button>
+        <button class="btn-pit" onclick="callPitStop(2)">🔧 BOX THIS LAP</button>
+      </div>
+    </div>
+  </div>
+</section>
     </main>
   </div>
 
