@@ -2,7 +2,7 @@
 // GAME STATE & SYSTEM DATA (NASCAR SPEC)
 // ==========================================
 let gameData = {
-  cash: 200000000, // Modal awal Rp 200 Juta
+  cash: 500000000, // Modal awal diubah menjadi Rp 500 Juta
   sponsor: "Toko Sparepart Jaya",
   points: 0,
   currentTab: "tab-dashboard",
@@ -84,7 +84,7 @@ function renderWelcomeBanner() {
       </p>
       <p style="color: #8b949e; font-size: 12px; margin-top: 10px;">
         ⚠️ <strong>Status Garasi Tim:</strong> Garasi masih <strong>KOSONG</strong>. 
-        Gunakan modal awal <strong>Rp 200.000.000</strong> untuk melengkapi syarat tim: <strong>2 Mobil, 2 Pembalap, dan Minimal 1 Mekanik</strong>.
+        Gunakan modal awal <strong>Rp 500.000.000</strong> untuk melengkapi syarat tim: <strong>2 Mobil, 2 Pembalap, dan Minimal 1 Mekanik</strong>.
       </p>
     </div>
   `;
@@ -139,7 +139,6 @@ function renderDriverCards() {
         </div>
         
         <div class="slider-nego-container">
-          <!-- Slider Gaji Per Balap -->
           <div class="slider-group">
             <div class="slider-label">
               <span>Gaji Per Balap:</span>
@@ -150,7 +149,6 @@ function renderDriverCards() {
                    oninput="updateNegoCalc('drv', '${drv.id}')">
           </div>
 
-          <!-- Slider Durasi Kontrak (Min 7 Balap) -->
           <div class="slider-group" style="margin-top: 10px;">
             <div class="slider-label">
               <span>Durasi Kontrak:</span>
