@@ -1,15 +1,14 @@
 // ==========================================
-// GAME STATE & SYSTEM DATA (NASCAR SPEC)
+// GAME STATE & SYSTEM DATA (NASCOT GRAND PRIX)
 // ==========================================
 let gameData = {
-  cash: 500000000, // Rp 500 Juta awal
+  cash: 500000000,
   sponsor: "Toko Sparepart Jaya",
   points: 0,
   seasonStarted: false,
   currentCalendarIndex: 0,
   simSpeed: 1.0,
 
-  // Player Setup
   playerTeam: null,
   workshopLevel: 1,
   myCars: [],       // Max 2 Mobil
@@ -17,13 +16,39 @@ let gameData = {
   myMechanics: [],  // Min 1 Mekanik
   calendarSchedule: [],
 
-  // Klasemen Storage
-  driverStandings: {}, // { "Nama Driver": { points, teamName, teamColor } }
-  teamStandings: {}    // { "ID Tim": { name, color, points } }
+  driverStandings: {}, // Tepat 120 Driver
+  teamStandings: {}    // Tepat 60 Tim
 };
 
 // Sistem Poin Balapan (Top 10 Finishers)
 const RACE_POINTS_SYSTEM = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+// Kosakata Komentator Balap (1000+ Combinations)
+const COMMENTARY_VOCAB = {
+  starts: [
+    "Lampu merah padam dan balapan resmi dimulai! Semua angkot melesat di lintasan!",
+    "Deru mesin menggelora! Para pembalap langsung adu akselerasi tajam di tikungan pertama!",
+    "Start yang luar biasa bersih! Rombongan depan langsung memperebutkan line bagian dalam!",
+    "Tancap gas pol! Persaingan mendebarkan langsung menyajikan aksi saling senggol halus!"
+  ],
+  overtakes: [
+    "Luar biasa! Manuver mepet memotong dari sebelah dalam yang sangat berani!",
+    "Menyalip dengan manuver telak di trek lurus utama! Kecepatan puncak benar-benar berbicara!",
+    "Pembalap ini mengambil late-braking yang amat berisiko namun sukses mengambil posisi!",
+    "Aksi slipstream tajam sebelum tikungan! Posisi berhasil direbut dengan sangat gemilang!"
+  ],
+  battles: [
+    "Persaingan amat sengit antara dua angkot monster di garis lurus!",
+    "Jarak antar pembalap sangat tipis, benar-benar adu mental dan daya tahan mesin!",
+    "Tekanan besar diberikan oleh pembalap di belakang, pertahanan sudut yang amat rapat!",
+    "Ban mulai mengeluarkan asap tipis saat kedua pembalap berduel di chicane ketat!"
+  ],
+  finishes: [
+    "Bendera finish dikibarkan! Balapan dramatis resmi berakhir hari ini!",
+    "Performa luar biasa tanpa cela! Kemenangan mutlak diraih dengan telak!",
+    "Poin penuh berhasil diamanatkan untuk kejuaraan musim ini! Selamat bagi para pemenang!"
+  ]
+};
 
 // Simulation Race Variables
 let raceCars = [];
@@ -32,25 +57,55 @@ let currentLapGlobal = 1;
 let isRacing = false;
 let raceInterval = null;
 let activeRaceTrack = null;
+let raceElapsedTime = 0; // Waktu balap berjalan (ms)
 
 document.addEventListener("DOMContentLoaded", () => {
   initTeamSelectionModal();
-  generateRandomCalendar();
-  initStandingsData();
+  generate20RaceCalendar();
+  initStandings120Drivers();
   updateFinancialUI();
 });
 
-// INITIALIZE KLASEMEN AWAL
-function initStandingsData() {
-  if (typeof TEAMS_DATA !== "undefined") {
-    TEAMS_DATA.forEach(t => {
-      gameData.teamStandings[t.id] = { name: t.name, color: t.color, points: 0 };
-    });
-  }
+// ==========================================
+// 1. GENERATOR KLASEMEN 120 PEMBALAP (EXACT)
+// ==========================================
+function initStandings120Drivers() {
+  gameData.driverStandings = {};
+  gameData.teamStandings = {};
+
+  if (typeof TEAMS_DATA === "undefined" || typeof INITIAL_DRIVERS === "undefined") return;
+
+  // Inisialisasi 60 Tim
+  TEAMS_DATA.forEach(t => {
+    gameData.teamStandings[t.id] = { name: t.name, color: t.color, points: 0 };
+  });
+
+  // Inisialisasi Tepat 120 Driver (2 Driver per Tim)
+  let driverIdCounter = 1;
+  TEAMS_DATA.forEach(team => {
+    for (let carNum = 1; carNum <= 2; carNum++) {
+      let driverName = `Pembalap ${team.name} #${carNum}`;
+      
+      // Ambil nama dari INITIAL_DRIVERS jika tersedia
+      let foundInDrivers = INITIAL_DRIVERS.find(d => d.teamId === team.id && d.carNumber === carNum);
+      if (foundInDrivers) {
+        driverName = foundInDrivers.name;
+      }
+
+      gameData.driverStandings[driverName] = {
+        name: driverName,
+        teamId: team.id,
+        teamName: team.name,
+        teamColor: team.color,
+        points: 0
+      };
+      driverIdCounter++;
+    }
+  });
 }
 
 // ==========================================
-// 1. SELEKSI TIM & BANNER SAMBUTAN
+// 2. SELEKSI TIM & MODAL
 // ==========================================
 function initTeamSelectionModal() {
   const container = document.getElementById("team-select-container");
@@ -80,6 +135,7 @@ function selectPlayerTeam(teamId) {
   renderDriverCards();
   renderMechanicCards();
   renderGarageCards();
+  renderMyGarageCars();
   renderStandingsUI();
 }
 
@@ -94,16 +150,54 @@ function renderWelcomeBanner() {
         "Selamat bergabung di tim, semoga kita berhasil menjuarai Grand Prix ini!"
       </p>
       <p style="color: #8b949e; font-size: 12px; margin-top: 10px;">
-        ⚠️ <strong>Status Garasi Tim:</strong> Garasi saat ini masih <strong>KOSONG</strong>. 
-        Gunakan modal awal <strong>Rp 500.000.000</strong> untuk melengkapi syarat tim: <strong>2 Mobil, 2 Pembalap, dan Minimal 1 Mekanik</strong>.
+        ⚠️ <strong>Garasi awal masih KOSONG:</strong> Beli 2 Mobil, kontrak 2 Pembalap & minimal 1 Mekanik dengan modal awal <strong>Rp 500.000.000</strong>.
       </p>
     </div>
   `;
 }
 
 // ==========================================
-// 2. KONTROL KALENDER & START SEASON
+// 3. KALENDER 20 SIRKUIT BALAP (EXACT 20)
 // ==========================================
+function generate20RaceCalendar() {
+  if (typeof TRACKS_DATA === "undefined") return;
+  
+  // Acak data sirkuit dan ambil tepat 20 sirkuit balap
+  const shuffledTracks = [...TRACKS_DATA].sort(() => 0.5 - Math.random()).slice(0, 20);
+  const startDate = new Date(2026, 5, 1);
+
+  let schedule = [];
+  for (let i = 0; i < 20; i++) {
+    let currentDate = new Date(startDate);
+    currentDate.setDate(startDate.getDate() + (i * 7));
+
+    schedule.push({
+      raceNum: i + 1,
+      dateStr: currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+      isRace: true,
+      track: shuffledTracks[i]
+    });
+  }
+
+  gameData.calendarSchedule = schedule;
+  renderCalendarUI();
+}
+
+function renderCalendarUI() {
+  const container = document.getElementById("calendar-container");
+  if (!container) return;
+
+  container.innerHTML = gameData.calendarSchedule.map((s, idx) => `
+    <div class="calendar-day race-day ${idx === gameData.currentCalendarIndex ? 'active-day' : ''}">
+      <div>
+        <span class="date-num">📅 ${s.dateStr}</span>
+        <div class="event-title">🏁 GP #${s.raceNum}: ${s.track.name}</div>
+      </div>
+      <div style="font-size:10px; color:#f39c12; margin-top:4px;">${s.track.type} (${s.track.lengthKm} KM)</div>
+    </div>
+  `).join('');
+}
+
 function startSeason() {
   if (gameData.myCars.length < 2) {
     alert("❌ Syarat Belum Terpenuhi: Kamu harus memiliki 2 Mobil balap!");
@@ -121,47 +215,103 @@ function startSeason() {
   gameData.seasonStarted = true;
   document.getElementById("btn-start-season").style.display = "none";
   document.getElementById("btn-next-day").style.display = "inline-block";
-  alert("🎉 MUSIM BALAP RESMI DIMULAI!");
+  alert("🎉 MUSIM BALAP 20 SIRKUIT RESMI DIMULAI!");
 }
 
 function advanceCalendarDay() {
   if (!gameData.seasonStarted) return;
 
-  if (gameData.currentCalendarIndex < gameData.calendarSchedule.length - 1) {
-    gameData.currentCalendarIndex++;
+  if (gameData.currentCalendarIndex < gameData.calendarSchedule.length) {
     const currentEvent = gameData.calendarSchedule[gameData.currentCalendarIndex];
-
-    const dateEl = document.getElementById("current-game-date");
-    if (dateEl) dateEl.innerText = currentEvent.dateStr;
+    document.getElementById("current-game-date").innerText = currentEvent.dateStr;
     renderCalendarUI();
 
-    if (currentEvent.isRace) {
-      activeRaceTrack = currentEvent.track;
-      alert(`🏁 HARI BALAPAN! GP ${activeRaceTrack.name}. Menuju ke layar Live Race!`);
-      switchTab('tab-race');
-      prepareRaceGrid();
-    }
+    activeRaceTrack = currentEvent.track;
+    alert(`🏁 HARI BALAPAN GP #${currentEvent.raceNum}! Sirkuit ${activeRaceTrack.name}.`);
+    switchTab('tab-race');
+    prepareRaceGrid();
   } else {
-    alert("🏆 MUSIM BALAP TELAH SELESAI!");
+    alert("🏆 MUSIM BALAP 20 SIRKUIT TELAH SELESAI!");
   }
 }
 
 // ==========================================
-// 3. LIVE LEADERBOARD ENGINE & PODIUM
+// 4. GARASI DEDIKASI (DIAGNOSIS DURABILITY)
+// ==========================================
+function renderMyGarageCars() {
+  const container = document.getElementById("my-garage-container");
+  if (!container) return;
+
+  if (gameData.myCars.length === 0) {
+    container.innerHTML = `<p style="color:#e74c3c; grid-column:1/-1;">⚠️ Belum ada mobil di garasi tim Anda. Silakan beli di menu Toko Mobil Awal.</p>`;
+    return;
+  }
+
+  container.innerHTML = gameData.myCars.map((car, idx) => `
+    <div class="card-item">
+      <div>
+        <div class="card-header">
+          <span class="card-title">🚐 ${car.name} (Mobil #${idx + 1})</span>
+          <span class="card-badge">Base Speed: ${car.baseSpeed} KM/H</span>
+        </div>
+        
+        <div class="card-stats">
+          <div class="stat-row">
+            <span>Kondisi Mesin:</span>
+            <span>${car.durabilityEngine || 100}%</span>
+          </div>
+          <div class="durability-bar">
+            <div class="durability-fill" style="width: ${car.durabilityEngine || 100}%; background: ${getDurabilityColor(car.durabilityEngine || 100)};"></div>
+          </div>
+
+          <div class="stat-row" style="margin-top: 8px;">
+            <span>Kondisi Bodi/Sasis:</span>
+            <span>${car.durabilityBody || 100}%</span>
+          </div>
+          <div class="durability-bar">
+            <div class="durability-fill" style="width: ${car.durabilityBody || 100}%; background: ${getDurabilityColor(car.durabilityBody || 100)};"></div>
+          </div>
+
+          <div class="stat-row" style="margin-top: 8px;">
+            <span>Kondisi Ban (Kompon):</span>
+            <span>${car.durabilityTires || 100}%</span>
+          </div>
+          <div class="durability-bar">
+            <div class="durability-fill" style="width: ${car.durabilityTires || 100}%; background: ${getDurabilityColor(car.durabilityTires || 100)};"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:11px; color:#8b949e; margin-top:10px; border-top:1px solid #30363d; padding-top:6px;">
+        🛠️ Perbaikan ditangani oleh ${gameData.myMechanics.length} Kepala Mekanik (Bengkel Lv. ${gameData.workshopLevel}).
+      </div>
+    </div>
+  `).join('');
+}
+
+function getDurabilityColor(val) {
+  if (val > 70) return "#2ecc71";
+  if (val > 35) return "#f39c12";
+  return "#e74c3c";
+}
+
+// ==========================================
+// 5. LIVE RACE ENGINE, KOMENTATOR & FULL TIME
 // ==========================================
 function prepareRaceGrid() {
   if (!activeRaceTrack) return;
 
   document.getElementById("race-track-name").innerText = `🏁 ${activeRaceTrack.name} (${activeRaceTrack.lengthKm} KM)`;
-  document.getElementById("race-status").innerText = "READY AT THE GRID";
+  document.getElementById("race-status").innerText = "READY AT GRID";
   document.getElementById("btn-toggle-race").innerText = "🟢 MULAI START BALAPAN";
   isRacing = false;
   currentLapGlobal = 1;
   totalLaps = activeRaceTrack.lapsDefault || 20;
+  raceElapsedTime = 0;
+
+  addCommentary(`🎙️ [START] Para pembalap dan 60 tim telah bersiap di grid sirkuit ${activeRaceTrack.name}!`);
 
   raceCars = [];
-  let availableDrivers = (typeof INITIAL_DRIVERS !== "undefined") ? [...INITIAL_DRIVERS] : [];
-  
   let usedNumbers = new Set();
   function getUniqueCarNumber() {
     let num;
@@ -176,33 +326,23 @@ function prepareRaceGrid() {
     const isPlayer = (gameData.playerTeam && team.id === gameData.playerTeam.id);
 
     for (let i = 0; i < 2; i++) {
-      let driverName = "";
+      let driverName = `Pembalap ${team.name} #${i + 1}`;
       let carNumber = getUniqueCarNumber();
-      let baseSpeed = 120 + Math.random() * 25;
+      let actualSpeed = 120 + Math.random() * 20; // Default base speed
 
       if (isPlayer) {
         let pDriver = gameData.myDrivers[i];
         let pCar = gameData.myCars[i];
-        driverName = pDriver ? pDriver.name : `Driver Cadangan ${i + 1}`;
-        baseSpeed = pCar ? pCar.baseSpeed : 135;
-      } else {
-        if (availableDrivers.length > 0) {
-          let teamDriverIdx = availableDrivers.findIndex(d => d.teamId === team.id);
-          if (teamDriverIdx !== -1) {
-            driverName = availableDrivers[teamDriverIdx].name;
-            availableDrivers.splice(teamDriverIdx, 1);
-          } else {
-            let randomDrv = availableDrivers.pop();
-            driverName = randomDrv ? randomDrv.name : `Pembalap ${globalCarIdx + 1}`;
-          }
-        } else {
-          driverName = `Pembalap ${globalCarIdx + 1}`;
+        if (pDriver) driverName = pDriver.name;
+        
+        // Pengaruh Kecepatan Nyata (Base Speed Mobil + Handling Bonus)
+        if (pCar) {
+          actualSpeed = pCar.baseSpeed + ((pCar.baseHandling || 50) * 0.2);
         }
-      }
-
-      // Pastikan driver terdaftar di klasemen
-      if (!gameData.driverStandings[driverName]) {
-        gameData.driverStandings[driverName] = { name: driverName, points: 0, teamName: team.name, teamColor: team.color };
+      } else {
+        // Ambil nama dari daftar driver jika ada
+        let matchKeys = Object.keys(gameData.driverStandings).filter(k => gameData.driverStandings[k].teamId === team.id);
+        if (matchKeys[i]) driverName = matchKeys[i];
       }
 
       raceCars.push({
@@ -216,10 +356,11 @@ function prepareRaceGrid() {
         isPlayer: isPlayer,
         distance: 0,
         currentLap: 1,
-        speed: baseSpeed,
+        speed: actualSpeed, // Kecepatan berfungsi nyata!
+        totalTimeMs: 0,
         lastLapTime: 0,
         bestLapTime: null,
-        lapStartTime: Date.now()
+        lapStartTime: 0
       });
 
       globalCarIdx++;
@@ -234,6 +375,8 @@ function toggleRaceEngine() {
     isRacing = true;
     document.getElementById("race-status").innerText = "RACING (GREEN FLAG) 🟢";
     document.getElementById("btn-toggle-race").innerText = "⏸️ PAUSE BALAPAN";
+    
+    addCommentary(`🏁 [GREEN FLAG] ${getRandomArrayItem(COMMENTARY_VOCAB.starts)}`);
     raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
   } else {
     isRacing = false;
@@ -253,29 +396,45 @@ function setSimSpeed(speed) {
 
 function updateRaceLogic() {
   let finished = true;
+  raceElapsedTime += (100 * gameData.simSpeed);
 
   raceCars.forEach(car => {
     if (car.currentLap <= totalLaps) {
       finished = false;
-      car.distance += (car.speed * 0.1) + (Math.random() * 2);
+      car.totalTimeMs += (100 * gameData.simSpeed);
+      
+      // Jarak dihitung berdasarkan Kecepatan Nyata
+      car.distance += (car.speed * 0.15) + (Math.random() * 2);
 
       let calcLap = Math.floor(car.distance / 1000) + 1;
       if (calcLap > car.currentLap && car.currentLap <= totalLaps) {
-        let lapTime = ((Date.now() - car.lapStartTime) / 1000) + Math.random();
+        let lapTime = (car.totalTimeMs - car.lapStartTime) / 1000;
         car.lastLapTime = lapTime;
         if (!car.bestLapTime || lapTime < car.bestLapTime) car.bestLapTime = lapTime;
 
         car.currentLap = calcLap;
-        car.lapStartTime = Date.now();
+        car.lapStartTime = car.totalTimeMs;
       }
     }
   });
 
+  // Urutkan Posisi
   raceCars.sort((a, b) => b.distance - a.distance);
   raceCars.forEach((c, idx) => c.pos = idx + 1);
 
   currentLapGlobal = Math.min(raceCars[0].currentLap, totalLaps);
   document.getElementById("race-lap-counter").innerText = `LAP ${currentLapGlobal} / ${totalLaps}`;
+
+  // Komentator Otomatis saat balap berjalan
+  if (Math.random() < 0.08) {
+    let topCar = raceCars[0];
+    let fightCar = raceCars[1];
+    if (Math.random() < 0.5) {
+      addCommentary(`🎙️ [LAP ${currentLapGlobal}] ${getRandomArrayItem(COMMENTARY_VOCAB.battles)} (${topCar.driverName} vs ${fightCar.driverName})`);
+    } else {
+      addCommentary(`⚡ [LAP ${currentLapGlobal}] ${getRandomArrayItem(COMMENTARY_VOCAB.overtakes)}`);
+    }
+  }
 
   renderTimingTower();
 
@@ -285,10 +444,12 @@ function updateRaceLogic() {
     document.getElementById("race-status").innerText = "CHECKERED FLAG 🏁";
     document.getElementById("btn-toggle-race").innerText = "Selesai";
     
-    // Kalkulasi Poin & Tampilkan Podium
+    addCommentary(`🏁 [FINISH] ${getRandomArrayItem(COMMENTARY_VOCAB.finishes)} Pemenang: #${raceCars[0].number} ${raceCars[0].driverName}!`);
+
     calculateRacePoints();
     showPodiumModal();
     repairCarsPostRace();
+    gameData.currentCalendarIndex++; // Lanjut ke jadwal berikutnya
   }
 }
 
@@ -313,6 +474,7 @@ function renderTimingTower() {
         <td style="font-weight:bold; color:#fff;">
           <span style="color:#f39c12; font-family:monospace; margin-right:6px;">[#${car.number}]</span>${car.driverName}
         </td>
+        <td style="font-family:monospace; color:#2ecc71;">${formatFullTime(car.totalTimeMs)}</td>
         <td>${gapText}</td>
         <td>${intervalText}</td>
         <td>${car.lastLapTime ? car.lastLapTime.toFixed(3) + 's' : '-'}</td>
@@ -322,18 +484,39 @@ function renderTimingTower() {
   }).join('');
 }
 
+function addCommentary(msg) {
+  const box = document.getElementById("race-commentary-stream");
+  if (!box) return;
+
+  const line = document.createElement("div");
+  line.className = "commentary-line";
+  line.innerText = msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function formatFullTime(ms) {
+  let totalSec = Math.floor(ms / 1000);
+  let min = Math.floor(totalSec / 60);
+  let sec = totalSec % 60;
+  let milli = Math.floor(ms % 1000);
+  return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${milli.toString().padStart(3, '0')}`;
+}
+
+function getRandomArrayItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 // ==========================================
-// 4. SISTEM POIN, PODIUM & KLASEMEN UI
+// 6. POIN, PODIUM & KLASEMEN 120 DRIVER
 // ==========================================
 function calculateRacePoints() {
   raceCars.forEach((car, index) => {
     let pts = RACE_POINTS_SYSTEM[index] || 0;
     if (pts > 0) {
-      // Tambah Poin Driver
       if (gameData.driverStandings[car.driverName]) {
         gameData.driverStandings[car.driverName].points += pts;
       }
-      // Tambah Poin Tim
       if (gameData.teamStandings[car.teamId]) {
         gameData.teamStandings[car.teamId].points += pts;
       }
@@ -389,7 +572,7 @@ function renderStandingsUI() {
   const driverBody = document.getElementById("driver-standings-body");
   const teamBody = document.getElementById("team-standings-body");
 
-  // Render Driver Standings
+  // Render Tepat 120 Pembalap
   if (driverBody) {
     let sortedDrivers = Object.values(gameData.driverStandings).sort((a, b) => b.points - a.points);
     driverBody.innerHTML = sortedDrivers.map((d, idx) => `
@@ -402,7 +585,7 @@ function renderStandingsUI() {
     `).join('');
   }
 
-  // Render Team Standings
+  // Render 60 Tim
   if (teamBody) {
     let sortedTeams = Object.values(gameData.teamStandings).sort((a, b) => b.points - a.points);
     teamBody.innerHTML = sortedTeams.map((t, idx) => `
@@ -416,16 +599,26 @@ function renderStandingsUI() {
 }
 
 function repairCarsPostRace() {
-  if (gameData.myCars.length === 0 || gameData.myMechanics.length === 0) return;
-  let repairAmount = Math.floor((gameData.myMechanics.length * 15) + (gameData.workshopLevel * 5));
+  if (gameData.myCars.length === 0) return;
+  let repairRate = (gameData.myMechanics.length * 15) + (gameData.workshopLevel * 5);
 
   gameData.myCars.forEach(car => {
-    car.durability = Math.min(100, (car.durability || 100) + repairAmount);
+    // Kurangi Durability setelah balap
+    car.durabilityEngine = Math.max(20, (car.durabilityEngine || 100) - Math.floor(Math.random() * 25));
+    car.durabilityBody = Math.max(20, (car.durabilityBody || 100) - Math.floor(Math.random() * 20));
+    car.durabilityTires = Math.max(10, (car.durabilityTires || 100) - Math.floor(Math.random() * 35));
+
+    // Mekanik Memperbaiki
+    car.durabilityEngine = Math.min(100, car.durabilityEngine + repairRate);
+    car.durabilityBody = Math.min(100, car.durabilityBody + repairRate);
+    car.durabilityTires = Math.min(100, car.durabilityTires + repairRate);
   });
+
+  renderMyGarageCars();
 }
 
 // ==========================================
-// 5. BURSA DRIVER, MEKANIK, GARASI & TOKO
+// 7. TOKO MOBIL & BURSA DRIVER/MEKANIK
 // ==========================================
 function renderDriverCards() {
   const container = document.getElementById("driver-cards-container");
@@ -584,11 +777,18 @@ function buyCar(carId) {
   const car = CAR_PRESETS.find(c => c.id === carId);
   if (gameData.cash >= car.price) {
     gameData.cash -= car.price;
-    gameData.myCars.push({ ...car, instanceId: 'car_' + Date.now(), durability: 100 });
+    gameData.myCars.push({ 
+      ...car, 
+      instanceId: 'car_' + Date.now(), 
+      durabilityEngine: 100, 
+      durabilityBody: 100, 
+      durabilityTires: 100 
+    });
     alert(`🎉 Berhasil membeli ${car.name}! Sisa modal: Rp ${gameData.cash.toLocaleString('id-ID')}`);
     updateFinancialUI();
     renderMarketCards();
     renderGarageCards();
+    renderMyGarageCars();
   } else {
     alert("❌ Modal kas tidak cukup!");
   }
@@ -597,11 +797,6 @@ function buyCar(carId) {
 function renderGarageCards() {
   const container = document.getElementById("garage-cards-container");
   if (!container) return;
-
-  if (gameData.myCars.length === 0) {
-    container.innerHTML = `<p style="color:#e74c3c; grid-column:1/-1;">⚠️ Garasi masih kosong! Belilah unit mobil di menu Toko Mobil Awal terlebih dahulu.</p>`;
-    return;
-  }
 
   let html = `
     <div style="grid-column:1/-1; background:#161b22; padding:12px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
@@ -633,7 +828,10 @@ function renderGarageCards() {
 }
 
 function installModToCar(modId) {
-  if (gameData.myCars.length === 0) return;
+  if (gameData.myCars.length === 0) {
+    alert("Belum ada mobil di garasi!");
+    return;
+  }
   const allMods = [...MODS_CATALOG.engine, ...MODS_CATALOG.suspension, ...MODS_CATALOG.transmission];
   const mod = allMods.find(m => m.id === modId);
 
@@ -643,8 +841,9 @@ function installModToCar(modId) {
     if (mod.speedBonus) targetCar.baseSpeed += mod.speedBonus;
     if (mod.handlingBonus) targetCar.baseHandling += mod.handlingBonus;
     
-    alert(`✅ Modifikasi ${mod.name} berhasil dipasang pada ${targetCar.name}!`);
+    alert(`✅ Modifikasi ${mod.name} berhasil dipasang pada ${targetCar.name}! Base speed bertambah menjadi ${targetCar.baseSpeed} KM/H.`);
     updateFinancialUI();
+    renderMyGarageCars();
   } else {
     alert("❌ Modal kas tidak cukup!");
   }
@@ -662,45 +861,6 @@ function upgradeWorkshop() {
   } else {
     alert(`Modal tidak mencukupi!`);
   }
-}
-
-function generateRandomCalendar() {
-  if (typeof TRACKS_DATA === "undefined") return;
-  const shuffledTracks = [...TRACKS_DATA].sort(() => 0.5 - Math.random());
-  const startDate = new Date(2026, 5, 1);
-
-  let schedule = [];
-  for (let i = 1; i <= 20; i++) {
-    let currentDate = new Date(startDate);
-    currentDate.setDate(startDate.getDate() + (i * 7));
-    const isRaceDay = (i % 2 === 0);
-    const track = isRaceDay ? shuffledTracks.pop() : null;
-
-    schedule.push({
-      day: i,
-      dateStr: currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-      isRace: isRaceDay,
-      track: track
-    });
-  }
-
-  gameData.calendarSchedule = schedule;
-  renderCalendarUI();
-}
-
-function renderCalendarUI() {
-  const container = document.getElementById("calendar-container");
-  if (!container) return;
-
-  container.innerHTML = gameData.calendarSchedule.map((s, idx) => `
-    <div class="calendar-day ${s.isRace ? 'race-day' : ''} ${idx === gameData.currentCalendarIndex ? 'active-day' : ''}">
-      <div>
-        <span class="date-num">📅 ${s.dateStr}</span>
-        <div class="event-title">${s.isRace ? '🏁 GP: ' + s.track.name : '🛠️ Hari Persiapan'}</div>
-      </div>
-      ${s.isRace ? `<div style="font-size:10px; color:#f39c12; margin-top:4px;">${s.track.type} (${s.track.lengthKm} KM)</div>` : ''}
-    </div>
-  `).join('');
 }
 
 function updateFinancialUI() {
