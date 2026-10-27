@@ -67,8 +67,8 @@ function renderStandings() {
   const teamBody = document.querySelector("#table-team-standings tbody");
   const driverBody = document.querySelector("#table-driver-standings tbody");
 
-  if (teamBody && typeof teamsData !== "undefined") {
-    teamBody.innerHTML = teamsData.map((t, idx) => `
+  if (teamBody && typeof TEAMS_DATA !== "undefined") {
+    teamBody.innerHTML = TEAMS_DATA.map((t, idx) => `
       <tr>
         <td>${idx + 1}</td>
         <td>${t.name}</td>
@@ -77,12 +77,12 @@ function renderStandings() {
     `).join("");
   }
 
-  if (driverBody && typeof driversData !== "undefined") {
-    driverBody.innerHTML = driversData.map((d, idx) => `
+  if (driverBody && typeof INITIAL_DRIVERS !== "undefined") {
+    driverBody.innerHTML = INITIAL_DRIVERS.map((d, idx) => `
       <tr>
         <td>${idx + 1}</td>
         <td>${d.name}</td>
-        <td>${d.team || '-'}</td>
+        <td>${d.teamId || '-'}</td>
         <td>${d.points || 0} PTS</td>
       </tr>
     `).join("");
@@ -94,10 +94,10 @@ function renderStandings() {
 // ==========================================
 function initTrackSelector() {
   const trackSelect = document.getElementById("select-track");
-  if (!trackSelect || typeof tracksData === "undefined") return;
+  if (!trackSelect || typeof TRACKS_DATA === "undefined") return;
 
-  trackSelect.innerHTML = tracksData.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join("");
-  gameData.selectedTrackId = tracksData[0]?.id || null;
+  trackSelect.innerHTML = TRACKS_DATA.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join("");
+  gameData.selectedTrackId = TRACKS_DATA[0]?.id || null;
 
   trackSelect.addEventListener("change", (e) => {
     gameData.selectedTrackId = e.target.value;
@@ -151,16 +151,16 @@ function setupRaceCars() {
   raceCars = [];
   
   // Mengambil data pembalap atau generate data default
-  let listDrivers = (typeof driversData !== "undefined" && driversData.length > 0) 
-    ? driversData 
-    : Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `Pembalap ${i + 1}`, team: `Tim ${Math.ceil((i + 1) / 2)}` }));
+  let listDrivers = (typeof INITIAL_DRIVERS !== "undefined" && INITIAL_DRIVERS.length > 0) 
+    ? INITIAL_DRIVERS 
+    : Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `Pembalap ${i + 1}`, teamId: `Tim ${Math.ceil((i + 1) / 2)}` }));
 
   raceCars = listDrivers.map((driver, index) => {
     return {
       id: driver.id || index + 1,
       number: index + 1,
       driverName: driver.name || `Pembalap ${index + 1}`,
-      teamName: driver.team || "Independent",
+      teamName: driver.teamId || "Independent",
       isTeamCar: index === 0 || index === 1, // Mobil #1 & #2 milik tim pemain
       distanceCovered: 0,
       currentLap: 1,
@@ -253,7 +253,7 @@ function updateTimingTower() {
 // ==========================================
 // PIT WALL STRATEGY CONTROLLERS
 // ==========================================
-function setStrategy(carNum, strat) {
+function setStrategy(carNum, strat, evt) {
   let targetCar = raceCars.find(c => c.number === carNum);
   if (targetCar) {
     targetCar.strategy = strat;
@@ -263,8 +263,8 @@ function setStrategy(carNum, strat) {
   const controls = document.querySelectorAll(`.driver-control`)[carNum - 1];
   if (controls) {
     controls.querySelectorAll(".btn-strat").forEach(btn => btn.classList.remove("active"));
-    if (event && event.target) {
-      event.target.classList.add("active");
+    if (evt && evt.target) {
+      evt.target.classList.add("active");
     }
   }
 }
