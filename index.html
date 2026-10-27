@@ -3,135 +3,121 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apex Workshop Manager - Circuit Strategy</title>
+  <title>NASCOT Manager - Angkot Championship</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="app">
-    <!-- Header / Top Bar -->
+    <!-- Top Dashboard Header -->
     <header class="top-bar">
       <div class="brand">
-        <span class="icon">🏎️</span>
-        <h1>APEX <span>WORKSHOP</span></h1>
+        <span class="logo">🚐</span>
+        <h1>NASCOT <span>MANAGER</span></h1>
       </div>
-      <div class="stats-group">
-        <div class="stat-pill">
-          <span class="label">KAS BENGKEL</span>
-          <span class="value gold" id="cash-val">Rp 250.000.000</span>
+      <div class="financial-status">
+        <div class="stat-card">
+          <span class="lbl">KAS TIM</span>
+          <span class="val" id="team-cash">Rp 500.000.000</span>
         </div>
-        <div class="stat-pill">
-          <span class="label">REPUTASI</span>
-          <span class="value cyan" id="rep-val">100 REP</span>
+        <div class="stat-card">
+          <span class="lbl">SPONSOR UTAMA</span>
+          <span class="val highlight" id="sponsor-name">Toko Sparepart Jaya</span>
         </div>
-        <button id="save-btn" class="btn-sm">💾 Simpan Data</button>
+        <div class="stat-card">
+          <span class="lbl">KLASIKEN POIN</span>
+          <span class="val" id="team-points">0 PTS</span>
+        </div>
       </div>
     </header>
 
-    <!-- Main Navigation Tabs -->
+    <!-- Navigation Tabs -->
     <nav class="nav-tabs">
-      <button class="tab-btn active" data-target="tab-garage">🚘 Garasi & Modif</button>
-      <button class="tab-btn" data-target="tab-market">🏬 Beli Mobil</button>
-      <button class="tab-btn" data-target="tab-crew">👥 Rekrut Kru</button>
-      <button class="tab-btn" data-target="tab-race">🏁 Balapan Sirkuit</button>
+      <button class="tab-btn active" data-tab="tab-dashboard">📊 Dashboard Pit Wall</button>
+      <button class="tab-btn" data-tab="tab-garage">🛠️ Garasi & Modif</button>
+      <button class="tab-btn" data-tab="tab-contracts">🤝 Kontrak Pembalap & Mekanik</button>
+      <button class="tab-btn" data-tab="tab-race">🏁 Balapan Live (Top-Down)</button>
     </nav>
 
-    <main class="content-area">
+    <!-- Main Content Panels -->
+    <main class="main-content">
+      <!-- TAB DASHBOARD -->
+      <section id="tab-dashboard" class="tab-panel active">
+        <h2>Klasemen Musim NASCOT Cup Series (15 Tim / 30 Mobil)</h2>
+        <div class="grid-2col">
+          <div class="panel-box">
+            <h3>Klasemen Konstruktor (Tim)</h3>
+            <table class="data-table" id="table-team-standings">
+              <thead><tr><th>Pos</th><th>Tim</th><th>Poin</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="panel-box">
+            <h3>Klasemen Pembalap</h3>
+            <table class="data-table" id="table-driver-standings">
+              <thead><tr><th>Pos</th><th>Pembalap</th><th>Tim</th><th>Poin</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- TAB GARASI -->
-      <section id="tab-garage" class="tab-content active">
-        <div class="split-view">
-          <div class="card-panel">
-            <h3>Pilih Mobil Utama</h3>
-            <div id="owned-cars-list" class="car-grid"></div>
+      <section id="tab-garage" class="tab-panel">
+        <h2>Modifikasi & Setup Angkot Tim</h2>
+        <div class="grid-2col">
+          <div class="panel-box">
+            <h3>Pilih Mobil Tim</h3>
+            <div id="team-cars-selector"></div>
           </div>
-          <div class="card-panel">
-            <h3>Bengkel Modifikasi</h3>
-            <div id="garage-mods-container">
-              <p class="empty-msg">Pilih mobil di sebelah kiri untuk mulai meracik modifikasi.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB MARKET -->
-      <section id="tab-market" class="tab-content">
-        <h2>Dealer Mobil Pasaran & Sport</h2>
-        <p class="subtitle">Beli mobil harian untuk dioprek jadi monster sirkuit.</p>
-        <div id="market-cars-list" class="car-grid"></div>
-      </section>
-
-      <!-- TAB REKRUT KRU -->
-      <section id="tab-crew" class="tab-content">
-        <div class="split-view">
-          <div class="card-panel">
-            <h3>Pembalap Aktif & Rekrutan</h3>
-            <div id="drivers-list"></div>
-          </div>
-          <div class="card-panel">
-            <h3>Mekanik Utama & Rekrutan</h3>
-            <div id="mechanics-list"></div>
+          <div class="panel-box">
+            <h3>Opsi Modifikasi Mesin & Ban</h3>
+            <div id="mods-selection-list"></div>
           </div>
         </div>
       </section>
 
-      <!-- TAB BALAPAN SIRKUIT -->
-      <section id="tab-race" class="tab-content">
-        <div class="race-setup-bar">
-          <div class="control-group">
-            <label for="track-select">Pilih Sirkuit:</label>
-            <select id="track-select">
-              <option value="sentul">Sirkuit Sentul (Teknis & Infield Ketat)</option>
-              <option value="mandalika">Sirkuit Mandalika (High-Speed Flowing)</option>
-              <option value="bandung">Street Circuit Bandung (Gedung Sate Loop)</option>
-            </select>
+      <!-- TAB KONTRAK & NEGO -->
+      <section id="tab-contracts" class="tab-panel">
+        <h2>Bursa Transfer & Negosiasi Kontrak</h2>
+        <div class="grid-2col">
+          <div class="panel-box">
+            <h3>Negosiasi Pembalap</h3>
+            <div id="driver-nego-container"></div>
           </div>
-          <div class="control-group">
-            <label for="laps-select">Jumlah Putaran:</label>
-            <select id="laps-select">
-              <option value="3">3 Laps (Sprint Short)</option>
-              <option value="5" selected>5 Laps (Medium)</option>
-              <option value="10">10 Laps (Endurance + Mandatory Pit)</option>
-            </select>
+          <div class="panel-box">
+            <h3>Negosiasi Kepala Mekanik</h3>
+            <div id="mechanic-nego-container"></div>
           </div>
-          <button id="start-race-btn" class="btn-primary">🚦 MULAI BALAPAN LIVE</button>
         </div>
+      </section>
 
-        <div class="race-dashboard">
-          <div class="canvas-wrapper">
-            <canvas id="raceCanvas" width="800" height="500"></canvas>
-            <div id="race-overlay-msg">Siap di garis start... Tekan Mulai Balapan.</div>
-          </div>
-
-          <div class="pit-wall">
-            <h3>Pit Wall & Strategi Live</h3>
-            <div class="pit-controls">
-              <button class="strat-btn" data-strat="push">🔥 Push Hard (+Speed, ++Tire Wear)</button>
-              <button class="strat-btn active" data-strat="balanced">⚖️ Normal Pace (Standard)</button>
-              <button class="strat-btn" data-strat="conserve">🌱 Conserve (-Speed, -Tire Wear)</button>
-              <button id="box-btn" class="strat-btn alert">🔧 BOX THIS LAP (Pitstop)</button>
+      <!-- TAB BALAPAN LIVE -->
+      <section id="tab-race" class="tab-panel">
+        <div class="race-header">
+          <select id="select-track"></select>
+          <button id="btn-start-race" class="btn-action">🟢 MULAI BALAPAN LIVE</button>
+        </div>
+        <div class="race-container">
+          <!-- Canvas Top-Down 3D/2D View -->
+          <canvas id="raceCanvas" width="850" height="520"></canvas>
+          
+          <!-- Pit Wall Strategy Controller -->
+          <div class="pit-wall-panel">
+            <h3>Pit Wall Control</h3>
+            <div class="driver-control">
+              <h4>Mobil #1 Strategy</h4>
+              <button class="btn-strat" onclick="setStrategy(1, 'push')">🔥 Push Hard</button>
+              <button class="btn-strat active" onclick="setStrategy(1, 'neutral')">⚖️ Neutral</button>
+              <button class="btn-strat" onclick="setStrategy(1, 'save')">🌱 Save Tires</button>
+              <button class="btn-pit" onclick="callPitStop(1)">🔧 BOX THIS LAP</button>
             </div>
-
-            <div class="telemetry-box">
-              <h4>Telemetry Mobil Kamu</h4>
-              <div class="telemetry-item">
-                <span>Kecepatan:</span> <strong id="tele-speed">0 km/h</strong>
-              </div>
-              <div class="telemetry-item">
-                <span>Kondisi Ban:</span>
-                <div class="bar-outer"><div id="bar-tire" class="bar-inner" style="width: 100%;"></div></div>
-              </div>
-              <div class="telemetry-item">
-                <span>Suhu Mesin:</span>
-                <div class="bar-outer"><div id="bar-heat" class="bar-inner heat" style="width: 30%;"></div></div>
-              </div>
-              <div class="telemetry-item">
-                <span>Sisa Lap:</span> <strong id="tele-laps">0 / 0</strong>
-              </div>
-            </div>
-
-            <div class="leaderboard-box">
-              <h4>Klasemen Sementara</h4>
-              <ol id="live-leaderboard"></ol>
+            <div class="driver-control">
+              <h4>Mobil #2 Strategy</h4>
+              <button class="btn-strat" onclick="setStrategy(2, 'push')">🔥 Push Hard</button>
+              <button class="btn-strat active" onclick="setStrategy(2, 'neutral')">⚖️ Neutral</button>
+              <button class="btn-strat" onclick="setStrategy(2, 'save')">🌱 Save Tires</button>
+              <button class="btn-pit" onclick="callPitStop(2)">🔧 BOX THIS LAP</button>
             </div>
           </div>
         </div>
@@ -139,13 +125,12 @@
     </main>
   </div>
 
-   <!-- Load Modul Data Terpisah -->
-<script src="cars.js"></script>
-<script src="drivers.js"></script>
-<script src="teams.js"></script>
-<script src="tracks.js"></script> <!-- Tambahkan baris ini -->
-
-<!-- Load Script Logika Utama Game -->
-<script src="javascript.js"></script>
+  <!-- Load External Scripts -->
+  <script src="teams.js"></script>
+  <script src="drivers.js"></script>
+  <script src="mechanics.js"></script>
+  <script src="cars.js"></script>
+  <script src="tracks.js"></script>
+  <script src="javascript.js"></script>
 </body>
 </html>
