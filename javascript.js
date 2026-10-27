@@ -14,7 +14,7 @@ let gameData = {
 };
 
 let raceCars = [];
-let totalLaps = 50; // Standar balap NASCAR 
+let totalLaps = 50; // Standar balap NASCAR Cup Series
 let currentLapGlobal = 1;
 let stage1Lap = 15;
 let stage2Lap = 30;
@@ -56,6 +56,14 @@ function initTabs() {
   });
 }
 
+// Helper untuk Mencari Data Tim berdasarkan teamId
+function getTeamById(teamId) {
+  if (typeof TEAMS_DATA !== "undefined" && Array.isArray(TEAMS_DATA)) {
+    return TEAMS_DATA.find(t => t.id === teamId) || null;
+  }
+  return null;
+}
+
 // ==========================================
 // DASHBOARD & KLASEMEN
 // ==========================================
@@ -82,21 +90,25 @@ function renderStandings() {
     teamBody.innerHTML = TEAMS_DATA.map((t, idx) => `
       <tr>
         <td>${idx + 1}</td>
-        <td>${t.name}</td>
+        <td><span style="color:${t.color}; font-weight:bold;">●</span> ${t.name}</td>
         <td>${t.points || 0} PTS</td>
       </tr>
     `).join("");
   }
 
   if (driverBody && typeof INITIAL_DRIVERS !== "undefined") {
-    driverBody.innerHTML = INITIAL_DRIVERS.map((d, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${d.name}</td>
-        <td>${d.teamId || '-'}</td>
-        <td>${d.points || 0} PTS</td>
-      </tr>
-    `).join("");
+    driverBody.innerHTML = INITIAL_DRIVERS.map((d, idx) => {
+      const teamObj = getTeamById(d.teamId);
+      const teamName = teamObj ? teamObj.name : (d.teamId || '-');
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${d.name}</td>
+          <td>${teamName}</td>
+          <td>${d.points || 0} PTS</td>
+        </tr>
+      `;
+    }).join("");
   }
 }
 
@@ -116,13 +128,13 @@ function initTrackSelector() {
 }
 
 // ==========================================
-// SETUP ROSTER BALAPAN (MAX 2 DRIVER PER TIM)
+// SETUP ROSTER BALAPAN (MENGAMBIL RELASI DARI TEAMS_DATA)
 // ==========================================
 function setupRaceCars() {
   raceCars = [];
   let driverRoster = [];
 
-  // Filter agar setiap tim hanya memiliki maksimal 2 driver di grid
+  // Filter dan petakan maksimal 2 driver per tim dari TEAMS_DATA
   if (typeof TEAMS_DATA !== "undefined" && typeof INITIAL_DRIVERS !== "undefined") {
     TEAMS_DATA.forEach(team => {
       const teamDrivers = INITIAL_DRIVERS.filter(d => d.teamId === team.id).slice(0, 2);
@@ -138,21 +150,25 @@ function setupRaceCars() {
 
   // Inisialisasi Kondisi Fisik & Telemetri Mobil
   raceCars = driverRoster.map((driver, index) => {
-    const isPlayer = driver.teamId === "team_1"; // Tim pemain
+    const teamObj = getTeamById(driver.teamId);
+    const isPlayer = teamObj ? teamObj.isPlayer : (index === 0 || index === 1);
+
     return {
       id: driver.id,
       number: index + 1,
       driverName: driver.name,
       teamId: driver.teamId,
+      teamName: teamObj ? teamObj.name : driver.teamId,
+      teamColor: teamObj ? teamObj.color : "#ffffff",
       isTeamCar: isPlayer,
       distanceCovered: 0,
       currentLap: 1,
       baseSpeed: 100 + Math.random() * 15,
       strategy: 'neutral', // 'push', 'neutral', 'save'
       
-      // TELEMETRI MOBIL REAL-TIME (NASCAR SYSTEM)
+      // TELEMETRI MOBIL REAL-TIME (NASCAR SPEC)
       fuel: 100.0,             // Persentase Bensin (100%)
-      engineTemp: 85.0,        // Celcius (Overheat > 115°C)
+      engineTemp: 85.0,        // Celcius (Overheat > 120°C)
       engineHealth: 100.0,     // Kesehatan Mesin (%)
       bodyHealth: 100.0,       // Keausan Aerodinamis / Bodi (%)
       suspensionHealth: 100.0, // Ketahanan Suspensi (%)
@@ -165,7 +181,7 @@ function setupRaceCars() {
       
       inPit: false,
       pitTimer: 0,
-      status: "RUNNING", // "RUNNING", "PIT", "DNF"
+      status: "RUNNING", // "RUNNING", "IN PIT", "DNF"
       lastLapTime: 0,
       bestLapTime: null,
       lapStartTime: Date.now(),
@@ -190,11 +206,11 @@ function setupEventListeners() {
   }
 }
 
-function setSimSpeed(speed) {
+function setSimSpeed(speed, evt) {
   gameData.simSpeed = speed;
   const btns = document.querySelectorAll(".btn-speed");
   btns.forEach(b => b.classList.remove("active"));
-  if (event && event.target) event.target.classList.add("active");
+  if (evt && evt.target) evt.target.classList.add("active");
 
   if (gameData.isRacing) {
     clearInterval(gameData.raceInterval);
@@ -267,14 +283,14 @@ function updateRaceLogic() {
       if (car.strategy === 'push') { stratMultiplier = 1.12; wearMultiplier = 1.8; }
       if (car.strategy === 'save') { stratMultiplier = 0.88; wearMultiplier = 0.5; }
 
-      // 3. Efek NASCAR Drafting (Slipstream jika tepat di belakang lawan < 50 unit)
+      // 3. Efek NASCAR Drafting (Slipstream jika mengekor < 50 unit)
       let draftingBonus = 1.0;
       let carIndex = sortedPositions.findIndex(c => c.id === car.id);
       if (carIndex > 0) {
         let carAhead = sortedPositions[carIndex - 1];
         let gapToAhead = carAhead.distanceCovered - car.distanceCovered;
         if (gapToAhead > 0 && gapToAhead < 50) {
-          draftingBonus = 1.06; // Extra 6% speed dari drafting
+          draftingBonus = 1.06; // Bonus kecepatan 6% dari drafting
         }
       }
 
@@ -283,7 +299,7 @@ function updateRaceLogic() {
 
       // Habis Bensin / Engine Breakdown Risk
       if (car.fuel <= 0) {
-        currentSpeed *= 0.3; // Berjalan sangat lambat ke pit
+        currentSpeed *= 0.3; // Berjalan lambat menuju pit
       }
       if (car.engineTemp > 120 || car.engineHealth <= 0) {
         car.status = "DNF";
@@ -295,7 +311,7 @@ function updateRaceLogic() {
       // 4. Update Simulasi Degradasi Fisik (Bensin, Ban, Suhu)
       car.fuel = Math.max(0, car.fuel - (0.05 * wearMultiplier));
       car.tires.FL = Math.max(0, car.tires.FL - (0.06 * wearMultiplier));
-      car.tires.FR = Math.max(0, car.tires.FR - (0.08 * wearMultiplier)); // Ban kanan depan lebih aus di trek oval
+      car.tires.FR = Math.max(0, car.tires.FR - (0.08 * wearMultiplier)); // Ban kanan depan lebih cepat aus di trek oval
       car.tires.RL = Math.max(0, car.tires.RL - (0.05 * wearMultiplier));
       car.tires.RR = Math.max(0, car.tires.RR - (0.07 * wearMultiplier));
 
@@ -391,7 +407,7 @@ function updateTimingTower(sortedCars) {
       <td>${index + 1}</td>
       <td>#${car.number}</td>
       <td>${car.driverName}</td>
-      <td>${car.teamId}</td>
+      <td><span style="color:${car.teamColor}; font-weight:bold;">●</span> ${car.teamName}</td>
       <td>${gap}</td>
       <td>${car.lastLapTime ? car.lastLapTime.toFixed(3) + "s" : "-"}</td>
       <td>${car.bestLapTime ? car.bestLapTime.toFixed(3) + "s" : "-"}</td>
@@ -413,11 +429,11 @@ function renderPitWallTelemetryUI() {
   panel.innerHTML = `
     <h3>Pit Wall Control & Telemetry</h3>
     <div class="sim-speed-controls" style="margin-bottom: 15px;">
-      <label>Kecepatan Simulasi: </label>
-      <button class="btn-strat btn-speed" onclick="setSimSpeed(0.5)">0.5x</button>
-      <button class="btn-strat btn-speed active" onclick="setSimSpeed(1.0)">1x</button>
-      <button class="btn-strat btn-speed" onclick="setSimSpeed(2.0)">2x</button>
-      <button class="btn-strat btn-speed" onclick="setSimSpeed(5.0)">5x</button>
+      <label style="font-size: 12px; margin-right: 8px;">Kecepatan Simulasi: </label>
+      <button class="btn-strat btn-speed" onclick="setSimSpeed(0.5, event)">0.5x</button>
+      <button class="btn-strat btn-speed active" onclick="setSimSpeed(1.0, event)">1x</button>
+      <button class="btn-strat btn-speed" onclick="setSimSpeed(2.0, event)">2x</button>
+      <button class="btn-strat btn-speed" onclick="setSimSpeed(5.0, event)">5x</button>
     </div>
     <div id="telemetry-drivers-container"></div>
   `;
@@ -434,9 +450,9 @@ function updateLiveTelemetryUI() {
     return;
   }
 
-  container.innerHTML = teamCars.map((car, idx) => `
+  container.innerHTML = teamCars.map((car) => `
     <div class="driver-control" style="background: #1c2128; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #30363d;">
-      <h4>Mobil #${car.number} - ${car.driverName} (${car.status})</h4>
+      <h4 style="color:${car.teamColor}">Mobil #${car.number} - ${car.driverName} (${car.status})</h4>
       
       <!-- Telemetri Fisik -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; margin: 8px 0;">
