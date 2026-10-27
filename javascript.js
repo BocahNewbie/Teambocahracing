@@ -1,5 +1,5 @@
 // ==========================================
-// GAME STATE & SYSTEM DATA
+// GAME STATE & SYSTEM DATA (NASCAR SPEC)
 // ==========================================
 let gameData = {
   cash: 500000000,
@@ -8,11 +8,21 @@ let gameData = {
   currentTab: "tab-dashboard",
   selectedTrackId: null,
   isRacing: false,
-  raceInterval: null
+  isPaused: false,
+  raceInterval: null,
+  simSpeed: 1.0 // Multiplier Kecepatan Simulasi: 0.5x, 1x, 2x, 5x
 };
 
 let raceCars = [];
-let totalLaps = 15;
+let totalLaps = 50; // Standar balap NASCAR 
+let currentLapGlobal = 1;
+let stage1Lap = 15;
+let stage2Lap = 30;
+let stageResults = { stage1: false, stage2: false };
+
+// Standard Points System NASCAR Cup Series (Top 40)
+const NASCAR_POINTS = [40, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+const STAGE_BONUS_POINTS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]; // Poin bonus Stage 1 & 2
 
 // ==========================================
 // INITIALIZATION ON LOAD
@@ -22,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initDashboard();
   initTrackSelector();
   setupEventListeners();
+  renderPitWallTelemetryUI();
 });
 
 // ==========================================
@@ -96,7 +107,7 @@ function initTrackSelector() {
   const trackSelect = document.getElementById("select-track");
   if (!trackSelect || typeof TRACKS_DATA === "undefined") return;
 
-  trackSelect.innerHTML = TRACKS_DATA.map(t => `<option value="${t.id}">${t.name} (${t.type})</option>`).join("");
+  trackSelect.innerHTML = TRACKS_DATA.map(t => `<option value="${t.id}">${t.name} (${t.type}) - ${t.lengthKm} KM</option>`).join("");
   gameData.selectedTrackId = TRACKS_DATA[0]?.id || null;
 
   trackSelect.addEventListener("change", (e) => {
@@ -105,7 +116,66 @@ function initTrackSelector() {
 }
 
 // ==========================================
-// LIVE RACE ENGINE (TIMING TOWER BASED)
+// SETUP ROSTER BALAPAN (MAX 2 DRIVER PER TIM)
+// ==========================================
+function setupRaceCars() {
+  raceCars = [];
+  let driverRoster = [];
+
+  // Filter agar setiap tim hanya memiliki maksimal 2 driver di grid
+  if (typeof TEAMS_DATA !== "undefined" && typeof INITIAL_DRIVERS !== "undefined") {
+    TEAMS_DATA.forEach(team => {
+      const teamDrivers = INITIAL_DRIVERS.filter(d => d.teamId === team.id).slice(0, 2);
+      driverRoster.push(...teamDrivers);
+    });
+  } else {
+    driverRoster = Array.from({ length: 20 }, (_, i) => ({
+      id: `drv_${i + 1}`,
+      name: `Pembalap ${i + 1}`,
+      teamId: `team_${Math.ceil((i + 1) / 2)}`
+    }));
+  }
+
+  // Inisialisasi Kondisi Fisik & Telemetri Mobil
+  raceCars = driverRoster.map((driver, index) => {
+    const isPlayer = driver.teamId === "team_1"; // Tim pemain
+    return {
+      id: driver.id,
+      number: index + 1,
+      driverName: driver.name,
+      teamId: driver.teamId,
+      isTeamCar: isPlayer,
+      distanceCovered: 0,
+      currentLap: 1,
+      baseSpeed: 100 + Math.random() * 15,
+      strategy: 'neutral', // 'push', 'neutral', 'save'
+      
+      // TELEMETRI MOBIL REAL-TIME (NASCAR SYSTEM)
+      fuel: 100.0,             // Persentase Bensin (100%)
+      engineTemp: 85.0,        // Celcius (Overheat > 115°C)
+      engineHealth: 100.0,     // Kesehatan Mesin (%)
+      bodyHealth: 100.0,       // Keausan Aerodinamis / Bodi (%)
+      suspensionHealth: 100.0, // Ketahanan Suspensi (%)
+      tires: {
+        FL: 100.0, // Front Left (%)
+        FR: 100.0, // Front Right (%)
+        RL: 100.0, // Rear Left (%)
+        RR: 100.0  // Rear Right (%)
+      },
+      
+      inPit: false,
+      pitTimer: 0,
+      status: "RUNNING", // "RUNNING", "PIT", "DNF"
+      lastLapTime: 0,
+      bestLapTime: null,
+      lapStartTime: Date.now(),
+      pointsEarned: 0
+    };
+  });
+}
+
+// ==========================================
+// LIVE RACE ENGINE (SIMULASI NASCAR)
 // ==========================================
 function setupEventListeners() {
   const btnStart = document.getElementById("btn-start-race");
@@ -120,20 +190,33 @@ function setupEventListeners() {
   }
 }
 
+function setSimSpeed(speed) {
+  gameData.simSpeed = speed;
+  const btns = document.querySelectorAll(".btn-speed");
+  btns.forEach(b => b.classList.remove("active"));
+  if (event && event.target) event.target.classList.add("active");
+
+  if (gameData.isRacing) {
+    clearInterval(gameData.raceInterval);
+    gameData.raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
+  }
+}
+
 function startRace() {
   gameData.isRacing = true;
+  currentLapGlobal = 1;
+  stageResults = { stage1: false, stage2: false };
+
   const btnStart = document.getElementById("btn-start-race");
   const raceStatus = document.getElementById("race-status");
 
   if (btnStart) btnStart.innerText = "⏹️ HENTIKAN BALAPAN";
-  if (raceStatus) raceStatus.innerText = "RACING";
+  if (raceStatus) raceStatus.innerText = "GREEN FLAG 🟢";
 
-  // Inisialisasi Mobil untuk Balapan
   setupRaceCars();
 
-  // Jalankan Game Loop Setiap 100ms (0.1 detik simulasi)
   if (gameData.raceInterval) clearInterval(gameData.raceInterval);
-  gameData.raceInterval = setInterval(updateRaceLogic, 100);
+  gameData.raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
 }
 
 function stopRace() {
@@ -144,60 +227,89 @@ function stopRace() {
   const raceStatus = document.getElementById("race-status");
 
   if (btnStart) btnStart.innerText = "🟢 MULAI BALAPAN";
-  if (raceStatus) raceStatus.innerText = "FINISHED";
+  if (raceStatus) raceStatus.innerText = "CHECKERED FLAG 🏁";
+
+  calculateFinalNascarPoints();
 }
 
-function setupRaceCars() {
-  raceCars = [];
-  
-  // Mengambil data pembalap atau generate data default
-  let listDrivers = (typeof INITIAL_DRIVERS !== "undefined" && INITIAL_DRIVERS.length > 0) 
-    ? INITIAL_DRIVERS 
-    : Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `Pembalap ${i + 1}`, teamId: `Tim ${Math.ceil((i + 1) / 2)}` }));
-
-  raceCars = listDrivers.map((driver, index) => {
-    return {
-      id: driver.id || index + 1,
-      number: index + 1,
-      driverName: driver.name || `Pembalap ${index + 1}`,
-      teamName: driver.teamId || "Independent",
-      isTeamCar: index === 0 || index === 1, // Mobil #1 & #2 milik tim pemain
-      distanceCovered: 0,
-      currentLap: 1,
-      speed: 80 + Math.random() * 20, // Kecepatan dasar
-      strategy: 'neutral',
-      lastLapTime: 0,
-      bestLapTime: null,
-      lapStartTime: Date.now()
-    };
-  });
-}
-
+// LOOP UTAMA SIMULASI BALAP
 function updateRaceLogic() {
   let raceFinished = true;
 
+  // Sorting Posisi Lintasan untuk Fitur Drafting / Slipstream
+  let sortedPositions = [...raceCars].sort((a, b) => b.distanceCovered - a.distanceCovered);
+
   raceCars.forEach(car => {
+    if (car.status === "DNF") return;
+
     if (car.currentLap <= totalLaps) {
       raceFinished = false;
 
-      // Kalkulasi Kecepatan Berdasarkan Strategi
+      // Handle Jika Mobil Sedang Pit Stop
+      if (car.inPit) {
+        car.pitTimer -= (0.1 * gameData.simSpeed);
+        if (car.pitTimer <= 0) {
+          car.inPit = false;
+          car.status = "RUNNING";
+        }
+        return;
+      }
+
+      // 1. Kalkulasi Efek Keausan & Modifikator Kecepatan
+      let avgTireWear = (car.tires.FL + car.tires.FR + car.tires.RL + car.tires.RR) / 4;
+      let tireGripFactor = avgTireWear / 100; // Aus ban mengurangi handling
+      let aeroFactor = car.bodyHealth / 100;  // Kerusakan bodi mengurangi top speed
+      let engineFactor = car.engineHealth / 100;
+
+      // 2. Multiplier Strategi Pit Wall
       let stratMultiplier = 1.0;
-      if (car.strategy === 'push') stratMultiplier = 1.15;
-      if (car.strategy === 'save') stratMultiplier = 0.88;
+      let wearMultiplier = 1.0;
+      if (car.strategy === 'push') { stratMultiplier = 1.12; wearMultiplier = 1.8; }
+      if (car.strategy === 'save') { stratMultiplier = 0.88; wearMultiplier = 0.5; }
 
-      let actualSpeed = car.speed * stratMultiplier * (0.95 + Math.random() * 0.1);
-      car.distanceCovered += actualSpeed;
+      // 3. Efek NASCAR Drafting (Slipstream jika tepat di belakang lawan < 50 unit)
+      let draftingBonus = 1.0;
+      let carIndex = sortedPositions.findIndex(c => c.id === car.id);
+      if (carIndex > 0) {
+        let carAhead = sortedPositions[carIndex - 1];
+        let gapToAhead = carAhead.distanceCovered - car.distanceCovered;
+        if (gapToAhead > 0 && gapToAhead < 50) {
+          draftingBonus = 1.06; // Extra 6% speed dari drafting
+        }
+      }
 
-      // Simulasi Penyelesaian Lap (Tiap 1000 unit jarak = 1 Lap)
+      // Hitung Kecepatan Akhir Simulasi
+      let currentSpeed = car.baseSpeed * stratMultiplier * tireGripFactor * aeroFactor * engineFactor * draftingBonus;
+
+      // Habis Bensin / Engine Breakdown Risk
+      if (car.fuel <= 0) {
+        currentSpeed *= 0.3; // Berjalan sangat lambat ke pit
+      }
+      if (car.engineTemp > 120 || car.engineHealth <= 0) {
+        car.status = "DNF";
+        return;
+      }
+
+      car.distanceCovered += (currentSpeed * 0.1);
+
+      // 4. Update Simulasi Degradasi Fisik (Bensin, Ban, Suhu)
+      car.fuel = Math.max(0, car.fuel - (0.05 * wearMultiplier));
+      car.tires.FL = Math.max(0, car.tires.FL - (0.06 * wearMultiplier));
+      car.tires.FR = Math.max(0, car.tires.FR - (0.08 * wearMultiplier)); // Ban kanan depan lebih aus di trek oval
+      car.tires.RL = Math.max(0, car.tires.RL - (0.05 * wearMultiplier));
+      car.tires.RR = Math.max(0, car.tires.RR - (0.07 * wearMultiplier));
+
+      if (car.strategy === 'push') car.engineTemp = Math.min(125, car.engineTemp + 0.15);
+      else car.engineTemp = Math.max(85, car.engineTemp - 0.1);
+
+      // 5. Cek Penyelesaian Lap
       let calculatedLap = Math.floor(car.distanceCovered / 1000) + 1;
       if (calculatedLap > car.currentLap && car.currentLap <= totalLaps) {
         let now = Date.now();
-        let lapTime = (now - car.lapStartTime) / 1000 + (Math.random() * 2);
+        let lapTime = (now - car.lapStartTime) / 1000 + (Math.random() * 1.5);
         car.lastLapTime = lapTime;
-        
-        if (!car.bestLapTime || lapTime < car.bestLapTime) {
-          car.bestLapTime = lapTime;
-        }
+
+        if (!car.bestLapTime || lapTime < car.bestLapTime) car.bestLapTime = lapTime;
 
         car.currentLap = calculatedLap;
         car.lapStartTime = now;
@@ -205,27 +317,72 @@ function updateRaceLogic() {
     }
   });
 
-  // Update Tampilan Timing Tower
-  updateTimingTower();
+  // Update Lap Global Utama
+  if (sortedPositions[0]) {
+    currentLapGlobal = Math.min(sortedPositions[0].currentLap, totalLaps);
+  }
 
-  // Cek jika seluruh mobil sudah finish
-  if (raceFinished) {
+  // Check Point Stage NASCAR (Stage 1 & Stage 2)
+  checkNascarStagePoints(sortedPositions);
+
+  // Update Tampilan UI
+  updateTimingTower(sortedPositions);
+  updateLiveTelemetryUI();
+
+  if (raceFinished || currentLapGlobal > totalLaps) {
     stopRace();
   }
 }
 
-function updateTimingTower() {
+// ==========================================
+// STAGE RACING SYSTEM (NASCAR SPEC)
+// ==========================================
+function checkNascarStagePoints(sortedCars) {
+  const raceStatus = document.getElementById("race-status");
+
+  // STAGE 1 END
+  if (currentLapGlobal >= stage1Lap && !stageResults.stage1) {
+    stageResults.stage1 = true;
+    awardStagePoints(sortedCars, "STAGE 1");
+    if (raceStatus) raceStatus.innerText = "STAGE 1 COMPLETE 🟡";
+  }
+
+  // STAGE 2 END
+  if (currentLapGlobal >= stage2Lap && !stageResults.stage2) {
+    stageResults.stage2 = true;
+    awardStagePoints(sortedCars, "STAGE 2");
+    if (raceStatus) raceStatus.innerText = "STAGE 2 COMPLETE 🟡";
+  }
+}
+
+function awardStagePoints(sortedCars, stageName) {
+  for (let i = 0; i < Math.min(10, sortedCars.length); i++) {
+    let bonus = STAGE_BONUS_POINTS[i];
+    sortedCars[i].pointsEarned += bonus;
+  }
+}
+
+function calculateFinalNascarPoints() {
+  let sortedCars = [...raceCars].sort((a, b) => b.distanceCovered - a.distanceCovered);
+  sortedCars.forEach((car, index) => {
+    let basePoints = NASCAR_POINTS[index] || 1;
+    car.pointsEarned += basePoints;
+  });
+  alert("Balapan Selesai! Poin Musim NASCAR Telah Diperbarui.");
+}
+
+// ==========================================
+// UI TIMING TOWER & PIT WALL CONTROL
+// ==========================================
+function updateTimingTower(sortedCars) {
   const tbody = document.getElementById("timing-tower-body");
   if (!tbody) return;
 
   tbody.innerHTML = "";
-
-  // Sortir mobil berdasarkan jarak tempuh tertinggi (posisi paling depan)
-  let sortedCars = [...raceCars].sort((a, b) => b.distanceCovered - a.distanceCovered);
   let leaderDistance = sortedCars[0]?.distanceCovered || 0;
 
   sortedCars.forEach((car, index) => {
-    let gap = index === 0 ? "LEADER" : `+${((leaderDistance - car.distanceCovered) / 100).toFixed(2)}s`;
+    let gap = index === 0 ? "LEADER" : (car.status === "DNF" ? "DNF" : `+${((leaderDistance - car.distanceCovered) / 100).toFixed(2)}s`);
 
     let tr = document.createElement("tr");
     if (car.isTeamCar) tr.classList.add("highlight-row");
@@ -234,7 +391,7 @@ function updateTimingTower() {
       <td>${index + 1}</td>
       <td>#${car.number}</td>
       <td>${car.driverName}</td>
-      <td>${car.teamName}</td>
+      <td>${car.teamId}</td>
       <td>${gap}</td>
       <td>${car.lastLapTime ? car.lastLapTime.toFixed(3) + "s" : "-"}</td>
       <td>${car.bestLapTime ? car.bestLapTime.toFixed(3) + "s" : "-"}</td>
@@ -242,16 +399,77 @@ function updateTimingTower() {
     tbody.appendChild(tr);
   });
 
-  // Update Lap Counter di Info Bar
   const lapCounter = document.getElementById("race-lap-counter");
-  if (lapCounter && sortedCars[0]) {
-    let displayLap = Math.min(sortedCars[0].currentLap, totalLaps);
-    lapCounter.innerText = `LAP ${displayLap} / ${totalLaps}`;
+  if (lapCounter) {
+    lapCounter.innerText = `LAP ${currentLapGlobal} / ${totalLaps}`;
   }
 }
 
+// Render Panel Kontrol & Telemetri Realtime di Pit Wall
+function renderPitWallTelemetryUI() {
+  const panel = document.querySelector(".pit-wall-panel");
+  if (!panel) return;
+
+  panel.innerHTML = `
+    <h3>Pit Wall Control & Telemetry</h3>
+    <div class="sim-speed-controls" style="margin-bottom: 15px;">
+      <label>Kecepatan Simulasi: </label>
+      <button class="btn-strat btn-speed" onclick="setSimSpeed(0.5)">0.5x</button>
+      <button class="btn-strat btn-speed active" onclick="setSimSpeed(1.0)">1x</button>
+      <button class="btn-strat btn-speed" onclick="setSimSpeed(2.0)">2x</button>
+      <button class="btn-strat btn-speed" onclick="setSimSpeed(5.0)">5x</button>
+    </div>
+    <div id="telemetry-drivers-container"></div>
+  `;
+}
+
+// Update Kondisi Fisik Mobil Real-Time pada UI
+function updateLiveTelemetryUI() {
+  const container = document.getElementById("telemetry-drivers-container");
+  if (!container) return;
+
+  const teamCars = raceCars.filter(c => c.isTeamCar);
+  if (teamCars.length === 0) {
+    container.innerHTML = "<p>Tidak ada mobil tim aktif di lintasan.</p>";
+    return;
+  }
+
+  container.innerHTML = teamCars.map((car, idx) => `
+    <div class="driver-control" style="background: #1c2128; padding: 12px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #30363d;">
+      <h4>Mobil #${car.number} - ${car.driverName} (${car.status})</h4>
+      
+      <!-- Telemetri Fisik -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; margin: 8px 0;">
+        <div><strong>Bensin:</strong> <span style="color:${car.fuel < 20 ? '#e74c3c' : '#2ecc71'}">${car.fuel.toFixed(1)}%</span></div>
+        <div><strong>Suhu Mesin:</strong> <span style="color:${car.engineTemp > 105 ? '#e74c3c' : '#f1c40f'}">${car.engineTemp.toFixed(1)}°C</span></div>
+        <div><strong>Kondisi Mesin:</strong> ${car.engineHealth.toFixed(0)}%</div>
+        <div><strong>Bodi / Aero:</strong> ${car.bodyHealth.toFixed(0)}%</div>
+      </div>
+
+      <!-- Detail Keausan 4 Ban -->
+      <div style="font-size: 10px; background: #0d1117; padding: 6px; border-radius: 4px; margin-bottom: 8px;">
+        <strong>Kondisi Ban:</strong>
+        <div style="display: flex; justify-content: space-between; margin-top: 3px;">
+          <span>FL: ${car.tires.FL.toFixed(0)}%</span>
+          <span>FR: ${car.tires.FR.toFixed(0)}%</span>
+          <span>RL: ${car.tires.RL.toFixed(0)}%</span>
+          <span>RR: ${car.tires.RR.toFixed(0)}%</span>
+        </div>
+      </div>
+
+      <!-- Tombol Strategi & Pit Stop -->
+      <div>
+        <button class="btn-strat ${car.strategy === 'push' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'push', event)">🔥 Push</button>
+        <button class="btn-strat ${car.strategy === 'neutral' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'neutral', event)">⚖️ Neutral</button>
+        <button class="btn-strat ${car.strategy === 'save' ? 'active' : ''}" onclick="setStrategy(${car.number}, 'save', event)">🌱 Save</button>
+        <button class="btn-pit" onclick="callPitStop(${car.number})" ${car.inPit ? 'disabled' : ''}>🔧 BOX (PIT)</button>
+      </div>
+    </div>
+  `).join("");
+}
+
 // ==========================================
-// PIT WALL STRATEGY CONTROLLERS
+// STRATEGI & INTERVENSI PIT STOP
 // ==========================================
 function setStrategy(carNum, strat, evt) {
   let targetCar = raceCars.find(c => c.number === carNum);
@@ -259,21 +477,28 @@ function setStrategy(carNum, strat, evt) {
     targetCar.strategy = strat;
   }
 
-  // Update Visual Tombol Strategi
-  const controls = document.querySelectorAll(`.driver-control`)[carNum - 1];
-  if (controls) {
-    controls.querySelectorAll(".btn-strat").forEach(btn => btn.classList.remove("active"));
-    if (evt && evt.target) {
-      evt.target.classList.add("active");
-    }
+  if (evt && evt.target) {
+    const parent = evt.target.parentElement;
+    parent.querySelectorAll(".btn-strat").forEach(btn => btn.classList.remove("active"));
+    evt.target.classList.add("active");
   }
 }
 
 function callPitStop(carNum) {
   let targetCar = raceCars.find(c => c.number === carNum);
-  if (targetCar && gameData.isRacing) {
-    // Kurangi jarak tempuh seolah mobil masuk pit stop
-    targetCar.distanceCovered -= 300; 
-    alert(`Mobil #${carNum} (${targetCar.driverName}) masuk Pit Stop! (Memperbaiki komponen & ganti ban)`);
+  if (targetCar && gameData.isRacing && !targetCar.inPit) {
+    targetCar.inPit = true;
+    targetCar.status = "IN PIT";
+    targetCar.pitTimer = 12; // Waktu Pit Stop 12 detik
+
+    // Refill Bensin & Ban Baru
+    targetCar.fuel = 100.0;
+    targetCar.tires.FL = 100.0;
+    targetCar.tires.FR = 100.0;
+    targetCar.tires.RL = 100.0;
+    targetCar.tires.RR = 100.0;
+    targetCar.engineTemp = 85.0; // Dinginkan mesin
+
+    alert(`Mobil #${carNum} (${targetCar.driverName}) masuk Pit Stop! Refill Bensin & Ganti 4 Ban Baru.`);
   }
 }
