@@ -1,74 +1,19 @@
-/**
- * CARS CATALOG
- */
-
-const CAR_MARKET = [
-  {
-    id: 'avanza',
-    name: 'Toyota Avanza Veloz',
-    category: 'MPV / Sleeper',
-    price: 120000000,
-    baseSpeed: 140,
-    baseAccel: 6.0,
-    baseHandling: 50,
-    baseRel: 92,
-    baseWeight: 1150
-  },
-  {
-    id: 'granmax',
-    name: 'Daihatsu Gran Max',
-    category: 'Blindvan / Sleeper',
-    price: 85000000,
-    baseSpeed: 125,
-    baseAccel: 4.5,
-    baseHandling: 42,
-    baseRel: 98,
-    baseWeight: 1200
-  },
-  {
-    id: 'brio',
-    name: 'Honda Brio RS',
-    category: 'City Car / Pocket Rocket',
-    price: 160000000,
-    baseSpeed: 165,
-    baseAccel: 7.0,
-    baseHandling: 68,
-    baseRel: 88,
-    baseWeight: 980
-  },
-  {
-    id: 'civic',
-    name: 'Honda Civic Type R (FK8)',
-    category: 'Hot Hatchback',
-    price: 450000000,
-    baseSpeed: 235,
-    baseAccel: 8.5,
-    baseHandling: 85,
-    baseRel: 82,
-    baseWeight: 1380
-  },
-  {
-    id: 'evo9',
-    name: 'Mitsubishi Lancer Evo IX',
-    category: 'AWD Rally Legend',
-    price: 520000000,
-    baseSpeed: 245,
-    baseAccel: 9.1,
-    baseHandling: 89,
-    baseRel: 78,
-    baseWeight: 1410
-  },
-  {
-    id: 'supra',
-    name: 'Toyota Supra MK4 (JZA80)',
-    category: 'Sports Coupe',
-    price: 780000000,
-    baseSpeed: 265,
-    baseAccel: 8.9,
-    baseHandling: 82,
-    baseRel: 85,
-    baseWeight: 1490
-  }
+// Aset Mobil Angkot dan Katalog Upgrade Modifikasi
+const CAR_PRESETS = [
+  { id: "angkot_suzuki", name: "Angkot Carry 1.0", baseSpeed: 140, baseHandling: 70, baseDurability: 85, price: 80000000 },
+  { id: "angkot_daihatsu", name: "Angkot GranMax 1.5", baseSpeed: 155, baseHandling: 75, baseDurability: 90, price: 120000000 },
+  { id: "angkot_mitsubishi", name: "Angkot L300 Monster", baseSpeed: 165, baseHandling: 65, baseDurability: 95, price: 150000000 }
 ];
 
-window.CAR_MARKET = CAR_MARKET;
+const MODS_CATALOG = {
+  engine: [
+    { id: "eng_1", name: "Karburator Porting Polish", speedBonus: 10, heatRisk: 5, cost: 15000000 },
+    { id: "eng_2", name: "Noken As Racing + Injection Kit", speedBonus: 22, heatRisk: 12, cost: 35000000 },
+    { id: "eng_3", name: "Turbocharger Intercooler", speedBonus: 40, heatRisk: 25, cost: 75000000 }
+  ],
+  tires: [
+    { id: "tire_soft", name: "Kompon Soft (Grip Maksimal, Aus Cepat)", grip: 95, durability: 40, cost: 8000000 },
+    { id: "tire_medium", name: "Kompon Medium (Seimbang)", grip: 80, durability: 70, cost: 6000000 },
+    { id: "tire_hard", name: "Kompon Hard (Irit, Grip Sedang)", grip: 68, durability: 100, cost: 5000000 }
+  ]
+};
