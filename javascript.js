@@ -2,7 +2,7 @@
 // GAME STATE & SYSTEM DATA (NASCAR SPEC)
 // ==========================================
 let gameData = {
-  cash: 500000000, // Modal awal Rp 500 Juta
+  cash: 500000000, // Rp 500 Juta awal
   sponsor: "Toko Sparepart Jaya",
   points: 0,
   seasonStarted: false,
@@ -11,12 +11,19 @@ let gameData = {
 
   // Player Setup
   playerTeam: null,
-  workshopLevel: 1, // Level Bengkel 1-5
-  myCars: [],       // Maksimal 2 Mobil
-  myDrivers: [],    // Maksimal 2 Pembalap
-  myMechanics: [],  // Minimal 1 Mekanik
-  calendarSchedule: []
+  workshopLevel: 1,
+  myCars: [],       // Max 2 Mobil
+  myDrivers: [],    // Max 2 Pembalap
+  myMechanics: [],  // Min 1 Mekanik
+  calendarSchedule: [],
+
+  // Klasemen Storage
+  driverStandings: {}, // { "Nama Driver": { points, teamName, teamColor } }
+  teamStandings: {}    // { "ID Tim": { name, color, points } }
 };
+
+// Sistem Poin Balapan (Top 10 Finishers)
+const RACE_POINTS_SYSTEM = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
 // Simulation Race Variables
 let raceCars = [];
@@ -26,12 +33,21 @@ let isRacing = false;
 let raceInterval = null;
 let activeRaceTrack = null;
 
-// INITIALIZATION ON LOAD
 document.addEventListener("DOMContentLoaded", () => {
   initTeamSelectionModal();
   generateRandomCalendar();
+  initStandingsData();
   updateFinancialUI();
 });
+
+// INITIALIZE KLASEMEN AWAL
+function initStandingsData() {
+  if (typeof TEAMS_DATA !== "undefined") {
+    TEAMS_DATA.forEach(t => {
+      gameData.teamStandings[t.id] = { name: t.name, color: t.color, points: 0 };
+    });
+  }
+}
 
 // ==========================================
 // 1. SELEKSI TIM & BANNER SAMBUTAN
@@ -55,11 +71,8 @@ function selectPlayerTeam(teamId) {
   const selected = TEAMS_DATA.find(t => t.id === teamId);
   gameData.playerTeam = selected;
 
-  const modal = document.getElementById("welcome-modal");
-  if (modal) modal.style.display = "none";
-
-  const teamNameEl = document.getElementById("player-team-name");
-  if (teamNameEl) teamNameEl.innerText = selected.name;
+  document.getElementById("welcome-modal").style.display = "none";
+  document.getElementById("player-team-name").innerText = selected.name;
 
   renderWelcomeBanner();
   updateFinancialUI();
@@ -67,6 +80,7 @@ function selectPlayerTeam(teamId) {
   renderDriverCards();
   renderMechanicCards();
   renderGarageCards();
+  renderStandingsUI();
 }
 
 function renderWelcomeBanner() {
@@ -107,7 +121,7 @@ function startSeason() {
   gameData.seasonStarted = true;
   document.getElementById("btn-start-season").style.display = "none";
   document.getElementById("btn-next-day").style.display = "inline-block";
-  alert("🎉 MUSIM BALAP RESMI DIMULAI! Silakan jalankan tanggal kalender untuk mengikuti balapan.");
+  alert("🎉 MUSIM BALAP RESMI DIMULAI!");
 }
 
 function advanceCalendarDay() {
@@ -121,7 +135,6 @@ function advanceCalendarDay() {
     if (dateEl) dateEl.innerText = currentEvent.dateStr;
     renderCalendarUI();
 
-    // Jika hari ini adalah Hari Balapan (Race Day)
     if (currentEvent.isRace) {
       activeRaceTrack = currentEvent.track;
       alert(`🏁 HARI BALAPAN! GP ${activeRaceTrack.name}. Menuju ke layar Live Race!`);
@@ -134,7 +147,7 @@ function advanceCalendarDay() {
 }
 
 // ==========================================
-// 3. LIVE LEADERBOARD SIMULATOR ENGINE (#1-#999)
+// 3. LIVE LEADERBOARD ENGINE & PODIUM
 // ==========================================
 function prepareRaceGrid() {
   if (!activeRaceTrack) return;
@@ -147,41 +160,32 @@ function prepareRaceGrid() {
   totalLaps = activeRaceTrack.lapsDefault || 20;
 
   raceCars = [];
-  
-  // Ambil data pembalap dari aset INITIAL_DRIVERS di drivers.js
   let availableDrivers = (typeof INITIAL_DRIVERS !== "undefined") ? [...INITIAL_DRIVERS] : [];
   
-  // Generator Nomor Pembalap Acak Unik (#1 hingga #999)
   let usedNumbers = new Set();
   function getUniqueCarNumber() {
     let num;
-    do {
-      num = Math.floor(Math.random() * 999) + 1; // 1 s/d 999
-    } while (usedNumbers.has(num));
+    do { num = Math.floor(Math.random() * 999) + 1; } while (usedNumbers.has(num));
     usedNumbers.add(num);
     return num;
   }
 
   let globalCarIdx = 0;
 
-  // Grid Roster (2 Mobil Per Tim dari TEAMS_DATA)
   TEAMS_DATA.forEach((team) => {
     const isPlayer = (gameData.playerTeam && team.id === gameData.playerTeam.id);
 
     for (let i = 0; i < 2; i++) {
       let driverName = "";
-      let carNumber = getUniqueCarNumber(); // Nomor #1-#999
+      let carNumber = getUniqueCarNumber();
       let baseSpeed = 120 + Math.random() * 25;
 
       if (isPlayer) {
-        // Tim Player: Menggunakan Driver & Mobil yang dikontrak
         let pDriver = gameData.myDrivers[i];
         let pCar = gameData.myCars[i];
-        
         driverName = pDriver ? pDriver.name : `Driver Cadangan ${i + 1}`;
         baseSpeed = pCar ? pCar.baseSpeed : 135;
       } else {
-        // Tim NPC: Mengambil nama asli dari aset INITIAL_DRIVERS (drivers.js)
         if (availableDrivers.length > 0) {
           let teamDriverIdx = availableDrivers.findIndex(d => d.teamId === team.id);
           if (teamDriverIdx !== -1) {
@@ -196,9 +200,15 @@ function prepareRaceGrid() {
         }
       }
 
+      // Pastikan driver terdaftar di klasemen
+      if (!gameData.driverStandings[driverName]) {
+        gameData.driverStandings[driverName] = { name: driverName, points: 0, teamName: team.name, teamColor: team.color };
+      }
+
       raceCars.push({
         id: `car_${globalCarIdx + 1}`,
-        number: carNumber, // Nomor Pembalap #1 - #999
+        number: carNumber,
+        teamId: team.id,
         pos: globalCarIdx + 1,
         driverName: driverName,
         teamName: team.name,
@@ -261,7 +271,6 @@ function updateRaceLogic() {
     }
   });
 
-  // Urutkan berdasarkan jarak tempuh tertinggi
   raceCars.sort((a, b) => b.distance - a.distance);
   raceCars.forEach((c, idx) => c.pos = idx + 1);
 
@@ -275,12 +284,14 @@ function updateRaceLogic() {
     isRacing = false;
     document.getElementById("race-status").innerText = "CHECKERED FLAG 🏁";
     document.getElementById("btn-toggle-race").innerText = "Selesai";
-    alert(`🏁 BALAPAN SELESAI!\nPemenang GP: #${raceCars[0].number} ${raceCars[0].driverName} (${raceCars[0].teamName})`);
+    
+    // Kalkulasi Poin & Tampilkan Podium
+    calculateRacePoints();
+    showPodiumModal();
     repairCarsPostRace();
   }
 }
 
-// RENDER TIMING TOWER DENGAN CHAMFERED BADGE & NOMOR (#1-#999)
 function renderTimingTower() {
   const tbody = document.getElementById("timing-tower-body");
   if (!tbody) return;
@@ -311,7 +322,99 @@ function renderTimingTower() {
   }).join('');
 }
 
-// Perbaikan Otomatis Durabilitas Mobil oleh Mekanik
+// ==========================================
+// 4. SISTEM POIN, PODIUM & KLASEMEN UI
+// ==========================================
+function calculateRacePoints() {
+  raceCars.forEach((car, index) => {
+    let pts = RACE_POINTS_SYSTEM[index] || 0;
+    if (pts > 0) {
+      // Tambah Poin Driver
+      if (gameData.driverStandings[car.driverName]) {
+        gameData.driverStandings[car.driverName].points += pts;
+      }
+      // Tambah Poin Tim
+      if (gameData.teamStandings[car.teamId]) {
+        gameData.teamStandings[car.teamId].points += pts;
+      }
+    }
+  });
+  renderStandingsUI();
+}
+
+function showPodiumModal() {
+  const modal = document.getElementById("podium-modal");
+  const trackNameEl = document.getElementById("podium-track-name");
+  const container = document.getElementById("podium-winners-display");
+
+  if (!modal || !container) return;
+
+  trackNameEl.innerText = `Grand Prix: ${activeRaceTrack ? activeRaceTrack.name : ''}`;
+
+  let p1 = raceCars[0];
+  let p2 = raceCars[1];
+  let p3 = raceCars[2];
+
+  container.innerHTML = `
+    <div class="podium-step podium-2">
+      <div style="font-size:10px;">POS 2 (+18 PTS)</div>
+      <div style="font-size:12px; margin-top:4px;">[#${p2.number}]</div>
+      <div>${p2.driverName}</div>
+      <div style="font-size:9px; opacity:0.8;">${p2.teamName}</div>
+    </div>
+    <div class="podium-step podium-1">
+      <div style="font-size:18px;">👑</div>
+      <div style="font-size:10px;">JUARA 1 (+25 PTS)</div>
+      <div style="font-size:12px; margin-top:4px;">[#${p1.number}]</div>
+      <div>${p1.driverName}</div>
+      <div style="font-size:9px; opacity:0.8;">${p1.teamName}</div>
+    </div>
+    <div class="podium-step podium-3">
+      <div style="font-size:10px;">POS 3 (+15 PTS)</div>
+      <div style="font-size:12px; margin-top:4px;">[#${p3.number}]</div>
+      <div>${p3.driverName}</div>
+      <div style="font-size:9px; opacity:0.8;">${p3.teamName}</div>
+    </div>
+  `;
+
+  modal.style.display = "flex";
+}
+
+function closePodiumAndShowStandings() {
+  document.getElementById("podium-modal").style.display = "none";
+  switchTab('tab-standings');
+}
+
+function renderStandingsUI() {
+  const driverBody = document.getElementById("driver-standings-body");
+  const teamBody = document.getElementById("team-standings-body");
+
+  // Render Driver Standings
+  if (driverBody) {
+    let sortedDrivers = Object.values(gameData.driverStandings).sort((a, b) => b.points - a.points);
+    driverBody.innerHTML = sortedDrivers.map((d, idx) => `
+      <tr>
+        <td><strong>#${idx + 1}</strong></td>
+        <td style="font-weight:bold; color:#fff;">${d.name}</td>
+        <td><span style="color:${d.teamColor}; font-weight:bold;">●</span> ${d.teamName}</td>
+        <td style="color:#f39c12; font-weight:bold;">${d.points} PTS</td>
+      </tr>
+    `).join('');
+  }
+
+  // Render Team Standings
+  if (teamBody) {
+    let sortedTeams = Object.values(gameData.teamStandings).sort((a, b) => b.points - a.points);
+    teamBody.innerHTML = sortedTeams.map((t, idx) => `
+      <tr style="${gameData.playerTeam && t.name === gameData.playerTeam.name ? 'background: rgba(243, 156, 18, 0.15);' : ''}">
+        <td><strong>#${idx + 1}</strong></td>
+        <td><span style="color:${t.color}; font-weight:bold;">●</span> ${t.name}</td>
+        <td style="color:#2ecc71; font-weight:bold;">${t.points} PTS</td>
+      </tr>
+    `).join('');
+  }
+}
+
 function repairCarsPostRace() {
   if (gameData.myCars.length === 0 || gameData.myMechanics.length === 0) return;
   let repairAmount = Math.floor((gameData.myMechanics.length * 15) + (gameData.workshopLevel * 5));
@@ -319,11 +422,10 @@ function repairCarsPostRace() {
   gameData.myCars.forEach(car => {
     car.durability = Math.min(100, (car.durability || 100) + repairAmount);
   });
-  alert(`🛠️ Tim Mekanik (${gameData.myMechanics.length} Orang) memulihkan durabilitas mobil sebesar +${repairAmount}%.`);
 }
 
 // ==========================================
-// 4. BURSA KONTRAK DRIVER & MEKANIK (SLIDER NEGO)
+// 5. BURSA DRIVER, MEKANIK, GARASI & TOKO
 // ==========================================
 function renderDriverCards() {
   const container = document.getElementById("driver-cards-container");
@@ -343,7 +445,6 @@ function renderDriverCards() {
           </div>
           <div class="card-stats">
             <div class="stat-row"><span>Agresivitas:</span><span>${drv.aggression}</span></div>
-            <div class="stat-row"><span>Konsistensi:</span><span>${drv.consistency}</span></div>
             <div class="stat-row"><span>Ekspektasi:</span><span>Rp ${(drv.salaryPerRace / 1000000).toFixed(1)} Jt / Balap</span></div>
           </div>
         </div>
@@ -375,14 +476,14 @@ function negoDriver(drvId) {
     if (gameData.cash >= totalPayment) {
       gameData.cash -= totalPayment;
       gameData.myDrivers.push({ ...drv, salaryPerRace: offerPerRace, remainingRaces: raceCount });
-      alert(`✅ Negosiasi Sukses!\n${drv.name} resmi dikontrak selama ${raceCount} balapan dengan total biaya Rp ${totalPayment.toLocaleString('id-ID')}.`);
+      alert(`✅ Negosiasi Sukses!\n${drv.name} resmi dikontrak selama ${raceCount} balapan.`);
       updateFinancialUI();
       renderDriverCards();
     } else {
-      alert(`❌ Modal kas tidak cukup! Butuh Rp ${totalPayment.toLocaleString('id-ID')}`);
+      alert(`❌ Modal kas tidak cukup!`);
     }
   } else {
-    alert(`❌ Negosiasi Ditolak!\n${drv.name}: "Tawaran gaji Rp ${offerPerRace.toLocaleString('id-ID')}/balap terlalu rendah!"`);
+    alert(`❌ Negosiasi Ditolak!`);
   }
 }
 
@@ -439,10 +540,10 @@ function negoMechanic(mechId) {
       updateFinancialUI();
       renderMechanicCards();
     } else {
-      alert(`❌ Modal kas tidak cukup! Butuh Rp ${totalPayment.toLocaleString('id-ID')}`);
+      alert(`❌ Modal kas tidak cukup!`);
     }
   } else {
-    alert(`❌ ${mech.name} menolak tawaran gaji tersebut!`);
+    alert(`❌ ${mech.name} menolak tawaran!`);
   }
 }
 
@@ -455,9 +556,6 @@ function updateNegoCalc(type, id) {
   document.getElementById(`total-pay-${type}-${id}`).innerText = `Rp ${(salaryVal * raceVal).toLocaleString('id-ID')}`;
 }
 
-// ==========================================
-// 5. TOKO MOBIL & GARASI MODIFIKASI
-// ==========================================
 function renderMarketCards() {
   const container = document.getElementById("market-cards-container");
   if (!container || typeof CAR_PRESETS === "undefined") return;
@@ -566,9 +664,6 @@ function upgradeWorkshop() {
   }
 }
 
-// ==========================================
-// 6. UTILITY & KALENDER
-// ==========================================
 function generateRandomCalendar() {
   if (typeof TRACKS_DATA === "undefined") return;
   const shuffledTracks = [...TRACKS_DATA].sort(() => 0.5 - Math.random());
