@@ -357,43 +357,66 @@ function executeSwap(candidateId) {
     renderSquadUI();
 }
 
-// SPONSOR RENDER
-function renderSponsorsUI() {
-    const types = ['primary', 'secondary', 'extra'];
-    const titles = { primary: 'Sponsor Utama', secondary: 'Sponsor Sekunder', extra: 'Sponsor Tambahan' };
+// State pilihan sponsor di game kamu
+let availableSponsors = generateSponsorOptions(5);
+let activeSponsors = {
+  primary: null,
+  secondary: null,
+  extra: null
+};
 
-    types.forEach(type => {
-        const card = document.getElementById(`sponsor-card-${type}`);
-        if (!card) return;
+// Fungsi Render UI Pilihan Sponsor
+function renderSponsors() {
+  const types = ['primary', 'secondary', 'extra'];
 
-        const sp = gameState.sponsors[type];
-        card.innerHTML = `
-            <div>
-                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">${titles[type]}</span>
-                <h4 class="font-extrabold text-base text-white mt-1">${sp.name}</h4>
-                <p class="text-xs text-slate-400 mt-2"><i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> Target: <b>${sp.goal}</b></p>
-            </div>
-            <div class="bg-slate-950 p-3 rounded-xl flex items-center justify-between">
-                <span class="text-xs text-slate-400">Nilai Kontrak:</span>
-                <b class="text-emerald-400 text-sm font-bold">${formatRupiah(sp.fee)}</b>
-            </div>
-            ${sp.claimed ? 
-                '<button disabled class="w-full py-2 bg-slate-800 text-emerald-400 font-bold rounded-xl text-xs cursor-not-allowed">✓ Kontrak Aktif</button>' :
-                `<button onclick="claimSponsor('${type}')" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition">Tanda Tangan Kontrak</button>`
-            }
-        `;
+  types.forEach(type => {
+    const container = document.getElementById(`${type}-sponsor-container`);
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    // Jika sponsor jenis ini sudah ditandatangani
+    if (activeSponsors[type]) {
+      const active = activeSponsors[type];
+      container.innerHTML = `
+        <div class="sponsor-card active-sponsor">
+          <span class="status-badge">Kontrak Aktif</span>
+          <h3>${active.name}</h3>
+          <p><strong>Target:</strong> ${active.goal}</p>
+          <p><strong>Nilai Kontrak:</strong> Rp ${active.fee.toLocaleString('id-ID')}</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Tampilkan 5 opsi pilihan jika belum dipilih
+    const optionsList = availableSponsors[type] || [];
+    
+    optionsList.forEach((sponsor) => {
+      const card = document.createElement('div');
+      card.className = 'sponsor-card-option';
+      card.innerHTML = `
+        <h3>${sponsor.name}</h3>
+        <p><strong>Target:</strong> ${sponsor.goal}</p>
+        <p><strong>Nilai Kontrak:</strong> Rp ${sponsor.fee.toLocaleString('id-ID')}</p>
+        <button onclick="signSponsorContract('${type}', '${sponsor.id}')">Tanda Tangan Kontrak</button>
+      `;
+      container.appendChild(card);
     });
+  });
 }
 
-function claimSponsor(type) {
-    const sp = gameState.sponsors[type];
-    if (sp && !sp.claimed) {
-        sp.claimed = true;
-        gameState.budget += sp.fee;
-        showAlert('Sponsor Ditandatangani!', `Klub menerima dana ${formatRupiah(sp.fee)} dari ${sp.name}!`, 'fa-handshake');
-        updateHeaderUI();
-        renderSponsorsUI();
-    }
+// Fungsi untuk Memilih/Menandatangani Kontrak Sponsor
+function signSponsorContract(type, sponsorId) {
+  const selected = availableSponsors[type].find(s => s.id === sponsorId);
+  if (selected) {
+    activeSponsors[type] = selected;
+    
+    // Opsional: langsung tambahkan uang nilai kontrak ke Kas Klub
+    // clubCash += selected.fee; 
+    
+    renderSponsors();
+  }
 }
 
 // STANDINGS RENDER
