@@ -132,7 +132,7 @@ const AudioEngine = {
 document.addEventListener("DOMContentLoaded", () => {
   loadGameFromStorage();
   initTeamSelectionModal();
-  generate20RaceCalendar();
+  generate40RaceCalendar(); // <-- Peta Kalender 40 Balapan (8 Bulan)
   initStandings120Drivers();
   updateFinancialUI();
   renderSponsorTab();
@@ -292,26 +292,41 @@ function renderWelcomeBanner() {
   `;
 }
 
-// --- KALENDER BALAP & SIMULASI WAKTU HARIAN ---
-function generate20RaceCalendar() {
-  if (typeof TRACKS_DATA === "undefined" || gameData.calendarSchedule.length > 0) return;
-  const shuffledTracks = [...TRACKS_DATA].sort(() => 0.5 - Math.random()).slice(0, 20);
-  const startDate = new Date(2026, 5, 1);
+// --- KALENDER BALAP 40 SERI (DISEBAR 8 BULAN) ---
+function generate40RaceCalendar() {
+  if (typeof TRACKS_DATA === "undefined") return;
 
+  // Jika kalender sudah tersimpan dan jumlahnya 40, langsung render
+  if (gameData.calendarSchedule && gameData.calendarSchedule.length === 40) {
+    renderCalendarUI();
+    return;
+  }
+
+  const startDate = new Date(2026, 5, 1); // 1 Juni 2026
   let schedule = [];
-  for (let i = 0; i < 20; i++) {
-    let currentDate = new Date(startDate);
-    currentDate.setDate(startDate.getDate() + (i * 7));
+
+  let poolTracks = [];
+  while (poolTracks.length < 40) {
+    poolTracks = poolTracks.concat([...TRACKS_DATA].sort(() => 0.5 - Math.random()));
+  }
+  const selectedTracks = poolTracks.slice(0, 40);
+
+  // Menyebar 40 balapan dalam waktu 8 bulan (~sekitar 6 hari sekali)
+  for (let i = 0; i < 40; i++) {
+    let raceDate = new Date(startDate);
+    raceDate.setDate(startDate.getDate() + Math.floor(i * 5.8));
 
     schedule.push({
       raceNum: i + 1,
-      dateStr: currentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+      dateStr: raceDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+      dateRaw: raceDate.toISOString(),
       isRace: true,
-      track: shuffledTracks[i]
+      track: selectedTracks[i]
     });
   }
 
   gameData.calendarSchedule = schedule;
+  saveGameToStorage();
   renderCalendarUI();
 }
 
@@ -319,11 +334,16 @@ function renderCalendarUI() {
   const container = document.getElementById("calendar-container");
   if (!container) return;
 
+  if (!gameData.calendarSchedule || gameData.calendarSchedule.length === 0) {
+    container.innerHTML = `<p style="color:#8b949e; grid-column:1/-1;">Sedang memuat jadwal balap...</p>`;
+    return;
+  }
+
   container.innerHTML = gameData.calendarSchedule.map((s, idx) => `
-    <div class="calendar-day race-day ${idx === gameData.currentCalendarIndex ? 'active-day' : ''}">
+    <div class="calendar-day race-day ${idx === gameData.currentCalendarIndex ? 'active-day' : ''}" style="background:#161b22; border:1px solid ${idx === gameData.currentCalendarIndex ? '#f39c12':'#30363d'}; padding:10px; border-radius:6px;">
       <div>
-        <span class="date-num">📅 ${s.dateStr}</span>
-        <div class="event-title">🏁 GP #${s.raceNum}: ${s.track.name}</div>
+        <span class="date-num" style="font-size:11px; color:#8b949e;">📅 ${s.dateStr}</span>
+        <div class="event-title" style="font-weight:bold; color:#fff; font-size:12px; margin-top:2px;">🏁 GP #${s.raceNum}: ${s.track.name}</div>
       </div>
       <div style="font-size:10px; color:#f39c12; margin-top:4px;">${s.track.type || 'Sirkuit'} (${s.track.lengthKm || 3.8} KM)</div>
     </div>
@@ -339,7 +359,7 @@ function advanceCalendarDay() {
   if (gameData.currentDate.getDay() === 1) {
     const weeklyCost = 5000000;
     gameData.cash -= weeklyCost;
-    addCommentary(`💸 [FINANSIAL] Biaya operasional operasional mingguan terpotong Rp ${weeklyCost.toLocaleString('id-ID')}`);
+    addCommentary(`💸 [FINANSIAL] Biaya operasional mingguan terpotong Rp ${weeklyCost.toLocaleString('id-ID')}`);
   }
 
   // Event Acak Harian (Peluang 20%)
@@ -353,9 +373,9 @@ function advanceCalendarDay() {
     const currentEvent = gameData.calendarSchedule[gameData.currentCalendarIndex];
     renderCalendarUI();
 
-    if (gameData.currentDate.getTime() >= new Date(currentEvent.dateStr).getTime()) {
+    if (gameData.currentDate.getTime() >= new Date(currentEvent.dateRaw || currentEvent.dateStr).getTime()) {
       activeRaceTrack = currentEvent.track;
-      alert(`🏁 HARI BALAPAN TEBAK GP #${currentEvent.raceNum}! Sirkuit ${activeRaceTrack.name}.`);
+      alert(`🏁 HARI BALAPAN GP #${currentEvent.raceNum}! Sirkuit ${activeRaceTrack.name}.`);
       switchTab('tab-race');
       prepareRaceGrid();
     }
