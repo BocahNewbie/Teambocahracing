@@ -11,11 +11,7 @@
     .podium-1 { height: 160px; background: linear-gradient(180deg, #f1c40f, #b7950b); order: 2; }
     .podium-2 { height: 120px; background: linear-gradient(180deg, #bdc3c7, #7f8c8d); order: 1; }
     .podium-3 { height: 90px; background: linear-gradient(180deg, #e67e22, #d35400); order: 3; }
-    
-    .commentary-box {
-      background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px;
-      height: 120px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; color: #2ecc71; margin-top: 15px;
-    }
+    .commentary-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; height: 120px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; color: #2ecc71; margin-top: 15px; }
     .commentary-line { margin-bottom: 4px; border-bottom: 1px solid #161b22; padding-bottom: 2px; }
     .durability-bar { height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin-top: 4px; }
     .durability-fill { height: 100%; transition: width 0.3s; }
@@ -76,12 +72,12 @@
     <!-- Navigation Tabs -->
     <nav class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Kalender & Musim</button>
-      <button class="tab-btn" onclick="switchTab('tab-my-garage')">🚗 Garasi Mobil Saya</button>
+      <button class="tab-btn" onclick="switchTab('tab-my-garage')">🚗 Garasi Mobil</button>
+      <button class="tab-btn" onclick="switchTab('tab-sponsors')">🏢 Sponsor Tim</button>
       <button class="tab-btn" onclick="switchTab('tab-mod-shop')">🛠️ Bengkel Modifikasi</button>
-      <button class="tab-btn" onclick="switchTab('tab-standings')">🏆 Klasemen GP (120 Driver)</button>
-      <button class="tab-btn" onclick="switchTab('tab-drivers')">🏎️ Kontrak Driver</button>
-      <button class="tab-btn" onclick="switchTab('tab-mechanics')">👨‍🔧 Kontrak Mekanik</button>
-      <button class="tab-btn" onclick="switchTab('tab-market')">🏬 Beli Mobil Awal</button>
+      <button class="tab-btn" onclick="switchTab('tab-standings')">🏆 Klasemen GP</button>
+      <button class="tab-btn" onclick="switchTab('tab-drivers')">🏎️ Bursa Driver</button>
+      <button class="tab-btn" onclick="switchTab('tab-mechanics')">👨‍🔧 Mekanik</button>
       <button class="tab-btn" id="btn-tab-race" onclick="switchTab('tab-race')">🏁 Live Race</button>
     </nav>
 
@@ -91,71 +87,51 @@
       <!-- TAB DASHBOARD & KALENDER -->
       <section id="tab-dashboard" class="tab-panel active">
         <div id="welcome-banner-container"></div>
-        
         <div style="background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <h3 style="color: #fff; margin-bottom: 4px;">🚀 Kontrol Waktu & Kalender Musim (20 Balapan)</h3>
-            <p style="color: #8b949e; font-size: 12px;">Lengkapi 2 Mobil, 2 Pembalap, dan minimal 1 Mekanik sebelum memulai musim!</p>
+            <h3 style="color: #fff; margin-bottom: 4px;">🚀 Kontrol Waktu & Save Data</h3>
+            <p style="color: #8b949e; font-size: 12px;">Maju 1 hari untuk simulasi mingguan dan pemicu berita event acak!</p>
           </div>
           <div style="display: flex; gap: 10px;">
-            <button id="btn-start-season" class="btn-action" style="background: #238636; width: auto; padding: 10px 20px; font-size: 15px;" onclick="startSeason()">▶️ MULAI MUSIM BALAP</button>
-            <button id="btn-next-day" class="btn-action" style="background: #1f6feb; width: auto; padding: 10px 20px; font-size: 15px; display: none;" onclick="advanceCalendarDay()">⏩ MAJU 1 HARI</button>
+            <button class="btn-action" style="background: #1f6feb; width: auto; padding: 10px 15px;" onclick="advanceCalendarDay()">⏩ MAJU 1 HARI</button>
+            <button class="btn-action" style="background: #30363d; width: auto; padding: 10px 15px;" onclick="exportSaveData()">💾 EXPORT SAVE</button>
+            <label class="btn-action" style="background: #30363d; width: auto; padding: 10px 15px; cursor:pointer;">
+              📂 IMPORT <input type="file" onchange="importSaveData(event)" style="display:none;">
+            </label>
           </div>
         </div>
-
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">📅 Kalender Resmi Grand Prix (20 Balapan Per Musim)</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Jadwal 20 sirkuit balap yang telah di-random otomatis dari pembuka hingga final:</p>
-        <div id="calendar-container" class="calendar-grid"></div>
       </section>
 
-      <!-- TAB GARASI MOBIL SAYA (DIAGNOSIS DURABILITY) -->
+      <!-- TAB GARASI MOBIL SAYA -->
       <section id="tab-my-garage" class="tab-panel">
         <h3 style="margin-bottom: 6px; color: var(--text-white);">🚗 Diagnostik & Kondisi Mobil Tim</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Pantau kondisi ketahanan fisik (mesin, bodi, ban) mobil balap Anda:</p>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Pantau kondisi ketahanan fisik (mesin & bodi) mobil balap Anda:</p>
         <div id="my-garage-container" class="cards-grid"></div>
+      </section>
+
+      <!-- TAB SPONSOR TIM -->
+      <section id="tab-sponsors" class="tab-panel">
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏢 Manajerial Kontrak Sponsor</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Dapatkan dana tambahan untuk setiap balapan dengan menyetujui kontrak sponsor:</p>
+        <div id="sponsor-cards-container" class="cards-grid"></div>
       </section>
 
       <!-- TAB BENGKEL MODIFIKASI -->
       <section id="tab-mod-shop" class="tab-panel">
         <h3 style="margin-bottom: 6px; color: var(--text-white);">🛠️ Bengkel Tuning & Toko Aksesoris</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Beli sparepart performa tinggi dan tingkatkan level bengkel tim Anda:</p>
         <div id="garage-cards-container" class="cards-grid"></div>
       </section>
 
       <!-- TAB KLASEMEN GRAND PRIX -->
       <section id="tab-standings" class="tab-panel">
-        <h3 style="margin-bottom: 10px; color: var(--text-white);">🏆 Klasemen Resmi Kejuaraan (60 Tim / 120 Pembalap)</h3>
+        <h3 style="margin-bottom: 10px; color: var(--text-white);">🏆 Klasemen Resmi Kejuaraan</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
           <div class="panel-box">
-            <h4 style="color: #f39c12; margin-bottom: 10px;">🏎️ Klasemen 120 Pembalap</h4>
-            <div style="max-height: 500px; overflow-y: auto;">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>POS</th>
-                    <th>PEMBALAP</th>
-                    <th>TIM</th>
-                    <th>POIN</th>
-                  </tr>
-                </thead>
-                <tbody id="driver-standings-body"></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="panel-box">
-            <h4 style="color: #2ecc71; margin-bottom: 10px;">🛡️ Klasemen 60 Tim / Konstruktor</h4>
-            <div style="max-height: 500px; overflow-y: auto;">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>POS</th>
-                    <th>TIM</th>
-                    <th>POIN</th>
-                  </tr>
-                </thead>
-                <tbody id="team-standings-body"></tbody>
-              </table>
-            </div>
+            <h4 style="color: #f39c12; margin-bottom: 10px;">🏎️ Klasemen Pembalap</h4>
+            <table class="data-table">
+              <thead><tr><th>POS</th><th>PEMBALAP</th><th>TIM</th><th>POIN</th></tr></thead>
+              <tbody id="driver-standings-body"></tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -163,22 +139,13 @@
       <!-- TAB KONTRAK DRIVER -->
       <section id="tab-drivers" class="tab-panel">
         <h3 style="margin-bottom: 6px; color: var(--text-white);">🏎️ Bursa & Negosiasi Driver</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Tawar gaji per sekali balap & durasi (Minimum 7x balapan):</p>
         <div id="driver-cards-container" class="cards-grid"></div>
       </section>
 
       <!-- TAB KONTRAK MEKANIK -->
       <section id="tab-mechanics" class="tab-panel">
         <h3 style="margin-bottom: 6px; color: var(--text-white);">👨‍🔧 Bursa & Negosiasi Mekanik</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Rekrut Mekanik untuk mempercepat perbaikan durabilitas mobil pasca balap:</p>
         <div id="mechanic-cards-container" class="cards-grid"></div>
-      </section>
-
-      <!-- TAB TOKO MOBIL -->
-      <section id="tab-market" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏬 Beli Mobil Balap Tim</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Beli maksimal 2 mobil balap awal menggunakan kas tim:</p>
-        <div id="market-cards-container" class="cards-grid"></div>
       </section>
 
       <!-- TAB LIVE RACE SIMULATOR & KOMENTATOR -->
@@ -190,29 +157,37 @@
           </div>
           <div style="display: flex; gap: 10px; align-items: center;">
             <button id="btn-toggle-race" class="btn-action" style="width: auto; padding: 8px 18px;" onclick="toggleRaceEngine()">🟢 MULAI START BALAPAN</button>
-            <span style="font-size: 11px; color:#8b949e;">Kecepatan:</span>
+            <button class="btn-action" style="width: auto; padding: 8px 18px; background:#d35400;" onclick="triggerPitStop()">👨‍🔧 CALL PIT STOP</button>
+            <span style="font-size: 11px; color:#8b949e;">Speed:</span>
             <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(1.0)">1x</button>
             <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(2.0)">2x</button>
             <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(5.0)">5x</button>
           </div>
         </div>
 
+        <!-- RADAR BALAPAN CANVAS 2D -->
+        <div class="panel-box" style="text-align: center; margin-bottom: 15px;">
+          <h4 style="color:#8b949e; margin-bottom: 8px;">📡 RADAR LINTASAN REAL-TIME</h4>
+          <canvas id="race-radar-canvas" width="600" height="120" style="background:#0d1117; border-radius:8px; border:1px solid #30363d;"></canvas>
+        </div>
+
+        <!-- TIMING TOWER -->
         <div class="panel-box" style="padding:0; overflow:hidden;">
           <div style="padding: 12px 15px; background: #21262d; display:flex; justify-content:space-between;">
             <span id="race-lap-counter" style="font-weight:bold; color:#fff;">LAP 1 / 20</span>
-            <span style="font-size:12px; color:#8b949e;">LIVE TIMING TOWER (FULL TIME)</span>
+            <span style="font-size:12px; color:#8b949e;">LIVE TIMING TOWER</span>
           </div>
-          <div style="max-height: 420px; overflow-y: auto;">
+          <div style="max-height: 300px; overflow-y: auto;">
             <table class="data-table">
               <thead>
                 <tr>
                   <th style="width: 50px;">POS</th>
-                  <th style="width: 180px;">TIM & BADGE</th>
+                  <th style="width: 180px;">TIM</th>
                   <th>PEMBALAP</th>
-                  <th>WAKTU TOTAL</th>
+                  <th>TOTAL WAKTU</th>
                   <th>GAP</th>
-                  <th>INTERVAL</th>
-                  <th>LAST LAP</th>
+                  <th>BAN</th>
+                  <th>KONDISI</th>
                   <th>BEST LAP</th>
                 </tr>
               </thead>
