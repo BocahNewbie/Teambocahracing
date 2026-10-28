@@ -1,1157 +1,1172 @@
-/* ============================================================
-   NASCOT CHAMPIONSHIP MANAGER - COMPLETE INTEGRATED ENGINE
-   ============================================================ */
-
-// --- STATE UTAMA GAME & LOCALSTORAGE ---
-let gameData = {
-  cash: 500000000,
-  sponsor: "Toko Sparepart Jaya",
-  activeSponsors: [],
-  points: 0,
-  currentDate: new Date(2026, 5, 1),
-  seasonStarted: false,
-  currentCalendarIndex: 0,
-  simSpeed: 1.0,
-
-  playerTeam: null,
-  workshopLevel: 1,
-  myCars: [],       // Max 2 Mobil
-  myDrivers: [],    // Max 2 Pembalap
-  myMechanics: [],  // Min 1 Mekanik
-  calendarSchedule: [],
-
-  driverStandings: {}, // Tepat 120 Driver
-  teamStandings: {}    // Tepat 60 Tim
+let gameState = {
+    teamName: '',
+    managerName: '',
+    budget: 2000000,
+    currentWeek: 1,
+    maxWeeks: 14,
+    userLeagueTier: 5,
+    roster: [],
+    startingLineupIds: [],
+    marketPlayers: [],
+    leagues: {},
+    schedules: [],
+    inboxMessages: [],
+    transferNews: [],
+    sponsors: {}
 };
 
-// --- SIMULATION & LIVE RACE STATE ---
-let raceCars = [];
-let totalLaps = 20;
-let currentLapGlobal = 1;
-let isRacing = false;
-let raceInterval = null;
-let activeRaceTrack = null;
-let raceElapsedTime = 0;
+let currentNego = null;
+let matchSimTimer = null;
+let activeMatchEvents = [];
+let currentEventIdx = 0;
+let currentSwapStarterId = null;
 
-let liveRaceData = {
-  weather: { type: 'Cerah ☀️', grip: 1.0, rec: 'Soft' },
-  userTyreChoice: 'Soft'
-};
+// HELPER UTILITIES
+function formatRupiah(amount) {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount);
+}
 
-const RACE_POINTS_SYSTEM = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+}
 
-const COMMENTARY_VOCAB = {
-  starts: [
-    "Lampu merah padam dan balapan resmi dimulai! Semua angkot melesat di lintasan!",
-    "Deru mesin menggelora! Para pembalap langsung adu akselerasi tajam di tikungan pertama!",
-    "Start yang luar biasa bersih! Rombongan depan langsung memperebutkan line bagian dalam!",
-    "Tancap gas pol! Persaingan mendebarkan langsung menyajikan aksi saling senggol halus!"
-  ],
-  overtakes: [
-    "Luar biasa! Manuver mepet memotong dari sebelah dalam yang sangat berani!",
-    "Menyalip dengan manuver telak di trek lurus utama! Kecepatan puncak benar-benar berbicara!",
-    "Pembalap ini mengambil late-braking yang amat berisiko namun sukses mengambil posisi!",
-    "Aksi slipstream tajam sebelum tikungan! Posisi berhasil direbut dengan sangat gemilang!"
-  ],
-  battles: [
-    "Persaingan amat sengit antara dua angkot monster di garis lurus!",
-    "Jarak antar pembalap sangat tipis, benar-benar adu mental dan daya tahan mesin!",
-    "Tekanan besar diberikan oleh pembalap di belakang, pertahanan sudut yang amat rapat!",
-    "Ban mulai mengeluarkan asap tipis saat kedua pembalap berduel di chicane ketat!"
-  ],
-  finishes: [
-    "Bendera finish dikibarkan! Balapan dramatis resmi berakhir hari ini!",
-    "Performa luar biasa tanpa cela! Kemenangan mutlak diraih dengan telak!",
-    "Poin penuh berhasil diamanatkan untuk kejuaraan musim ini! Selamat bagi para pemenang!"
-  ]
-};
+function showAlert(title, message, icon = 'fa-circle-info') {
+    document.getElementById('alert-title').innerText = title;
+    document.getElementById('alert-message').innerText = message;
+    document.getElementById('alert-icon').innerHTML = `<i class="fa-solid ${icon}"></i>`;
+    document.getElementById('modal-alert').classList.remove('hidden');
+}
 
-// --- WEB AUDIO API ENGINE ---
-const AudioEngine = {
-  ctx: null,
-  init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
+function countForeignPlayers(playersArr) {
+    return playersArr.filter(p => p.country !== 'Indonesia').length;
+}
+
+function getEffectiveOvr(p) {
+    const staminaMultiplier = 0.6 + (0.4 * (p.stamina / 100));
+    return Math.round(p.ovr * staminaMultiplier);
+}
+
+function getAverageLineupOvr() {
+    if (!gameState.startingLineupIds || gameState.startingLineupIds.length === 0) return 0;
+    const starters = gameState.roster.filter(p => gameState.startingLineupIds.includes(p.id));
+    if (starters.length === 0) return 0;
+    const sum = starters.reduce((acc, p) => acc + getEffectiveOvr(p), 0);
+    return Math.round(sum / starters.length);
+}
+
+// REGISTRATION HANDLER
+function handleRegistration(e) {
+    e.preventDefault();
+    const teamName = document.getElementById('input-team-name').value.trim();
+    const managerName = document.getElementById('input-manager-name').value.trim();
+
+    if (!teamName || !managerName) {
+        showAlert('Form Tidak Lengkap', 'Silakan isi Nama Tim dan Nama Manager.');
+        return;
     }
-  },
-  playClick() {
-    this.init();
-    if (!this.ctx) return;
-    try {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-      gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.05);
-    } catch(e){}
-  },
-  playRaceEngine() {
-    this.init();
-    if (!this.ctx) return;
-    try {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(120, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.3);
-      gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.3);
-    } catch(e){}
-  },
-  playVictory() {
-    this.init();
-    if (!this.ctx) return;
-    try {
-      const notes = [261.63, 329.63, 392.00, 523.25];
-      notes.forEach((freq, i) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.1);
-        gain.gain.setValueAtTime(0.1, this.ctx.currentTime + i * 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.1 + 0.25);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(this.ctx.currentTime + i * 0.1);
-        osc.stop(this.ctx.currentTime + i * 0.1 + 0.25);
-      });
-    } catch(e){}
-  }
-};
 
-// --- INISIALISASI GAME ---
-document.addEventListener("DOMContentLoaded", () => {
-  loadGameFromStorage();
-  initTeamSelectionModal();
-  generate40RaceCalendar(); // <-- Peta Kalender 40 Balapan (8 Bulan)
-  initStandings120Drivers();
-  updateFinancialUI();
-  renderSponsorTab();
+    gameState.teamName = teamName;
+    gameState.managerName = managerName;
+    gameState.budget = 2000000;
+    gameState.currentWeek = 1;
+    gameState.userLeagueTier = 5;
 
-  if (gameData.playerTeam) {
-    document.getElementById("welcome-modal").style.display = "none";
-    document.getElementById("player-team-name").innerText = gameData.playerTeam.name;
-    renderWelcomeBanner();
-    renderMarketCards();
-    renderDriverCards();
-    renderMechanicCards();
-    renderGarageCards();
-    renderMyGarageCars();
+    // Generate Default Roster: 9 players (8 local, 1 foreign) Tier H - F
+    gameState.roster = [];
+    const posAssignments = ['Outside Hitter', 'Middle Blocker', 'Opposite Hitter', 'Setter', 'Libero', 'Outside Hitter', 'Middle Blocker', 'Opposite Hitter', 'Setter'];
+
+    for (let i = 0; i < 9; i++) {
+        const isForeign = (i === 8);
+        const p = createRandomPlayer('user_p', ['H', 'G', 'F'], isForeign ? null : 'Indonesia', posAssignments[i]);
+        gameState.roster.push(p);
+    }
+
+    gameState.startingLineupIds = gameState.roster.slice(0, 6).map(p => p.id);
+
+    gameState.leagues = generateLeagueStructure(gameState.teamName);
+    gameState.sponsors = generateAllSponsors();
+
+    generateMarketPool();
+    generateLeagueSchedules();
+
+    gameState.inboxMessages.push({
+        id: 'msg_welcome',
+        type: 'SAMBUTAN LIGA',
+        time: '1',
+        message: `Selamat datang Manager ${gameState.managerName}! Tim Anda (${gameState.teamName}) telah terdaftar di kasta dasar **Liga 5 (Liga Voli Amatir)** dengan modal awal ${formatRupiah(gameState.budget)}. Berjuanglah untuk promosi ke Liga 1!`,
+        handled: true
+    });
+
+    document.getElementById('screen-setup').classList.add('hidden');
+    document.getElementById('top-header').classList.remove('hidden');
+    document.getElementById('screen-dashboard').classList.remove('hidden');
+
+    const selectEl = document.getElementById('select-league-tier');
+    if (selectEl) selectEl.value = "5";
+
+    updateHeaderUI();
+    renderSquadUI();
+    renderSponsorsUI();
     renderStandingsUI();
-  }
-});
-
-function updateFinancialUI() {
-  const cashEl = document.getElementById("team-cash");
-  if (cashEl) cashEl.innerText = `Rp ${gameData.cash.toLocaleString('id-ID')}`;
-  const dateEl = document.getElementById("current-game-date");
-  if (dateEl && gameData.currentDate) {
-    dateEl.innerText = formatDate(gameData.currentDate);
-  }
-  saveGameToStorage();
+    renderMatchUI();
+    renderTransferMarket();
+    renderInboxUI();
+    renderNewsUI();
 }
 
-function formatDate(d) {
-  const dateObj = new Date(d);
-  return dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+function generateLeagueSchedules() {
+    gameState.schedules = [];
+    const userLeagueTeams = gameState.leagues[gameState.userLeagueTier];
+    const otherTeams = userLeagueTeams.filter(t => !t.isUser);
 
-// --- LOCALSTORAGE & EXPORT/IMPORT ---
-function saveGameToStorage() {
-  try {
-    localStorage.setItem('NASCOT_GAME_DATA', JSON.stringify(gameData));
-  } catch (e) {}
-}
+    for (let w = 1; w <= gameState.maxWeeks; w++) {
+        const opponent = otherTeams[(w - 1) % otherTeams.length];
+        const matches = [
+            { home: userLeagueTeams.find(t => t.isUser), away: opponent, played: false, homeSets: 0, awaySets: 0 }
+        ];
 
-function loadGameFromStorage() {
-  const saved = localStorage.getItem('NASCOT_GAME_DATA');
-  if (saved) {
-    try {
-      gameData = JSON.parse(saved);
-      if (gameData.currentDate) gameData.currentDate = new Date(gameData.currentDate);
-    } catch (e) {}
-  }
-}
-
-function exportSaveData() {
-  AudioEngine.playClick();
-  const json = JSON.stringify(gameData, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `nascot_save_${Date.now()}.json`;
-  a.click();
-}
-
-function importSaveData(event) {
-  AudioEngine.playClick();
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      gameData = JSON.parse(e.target.result);
-      if (gameData.currentDate) gameData.currentDate = new Date(gameData.currentDate);
-      alert('✅ Save Data Berhasil Dimuat!');
-      location.reload();
-    } catch (err) {
-      alert('❌ Format File Save Tidak Valid!');
-    }
-  };
-  reader.readAsText(file);
-}
-
-// --- KLASEMEN 120 DRIVERS ---
-function initStandings120Drivers() {
-  if (Object.keys(gameData.driverStandings).length > 0) return;
-  gameData.driverStandings = {};
-  gameData.teamStandings = {};
-
-  if (typeof TEAMS_DATA === "undefined") return;
-
-  TEAMS_DATA.forEach(t => {
-    gameData.teamStandings[t.id] = { name: t.name, color: t.color, points: 0 };
-  });
-
-  TEAMS_DATA.forEach(team => {
-    for (let carNum = 1; carNum <= 2; carNum++) {
-      let driverName = `Pembalap ${team.name} #${carNum}`;
-      if (typeof INITIAL_DRIVERS !== "undefined") {
-        let found = INITIAL_DRIVERS.find(d => d.teamId === team.id && d.carNumber === carNum);
-        if (found) driverName = found.name;
-      }
-
-      gameData.driverStandings[driverName] = {
-        name: driverName,
-        teamId: team.id,
-        teamName: team.name,
-        teamColor: team.color,
-        points: 0
-      };
-    }
-  });
-}
-
-// --- MODAL SELEKSI TIM ---
-function initTeamSelectionModal() {
-  const container = document.getElementById("team-select-container");
-  if (!container || typeof TEAMS_DATA === "undefined") return;
-
-  container.innerHTML = TEAMS_DATA.map(t => `
-    <div class="team-card-select" style="cursor:pointer;" onclick="selectPlayerTeam('${t.id}')">
-      <div class="team-badge" style="background: ${t.color}"></div>
-      <div>
-        <div style="font-weight:bold; color:#fff; font-size:13px;">${t.name}</div>
-        <div style="font-size:10px; color:#8b949e;">Klik untuk Memilih Tim Ini</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function selectPlayerTeam(teamId) {
-  AudioEngine.playClick();
-  const selected = TEAMS_DATA.find(t => t.id === teamId);
-  gameData.playerTeam = selected;
-
-  document.getElementById("welcome-modal").style.display = "none";
-  document.getElementById("player-team-name").innerText = selected.name;
-
-  renderWelcomeBanner();
-  updateFinancialUI();
-  renderMarketCards();
-  renderDriverCards();
-  renderMechanicCards();
-  renderGarageCards();
-  renderMyGarageCars();
-  renderStandingsUI();
-}
-
-function renderWelcomeBanner() {
-  const container = document.getElementById("welcome-banner-container");
-  if (!container || !gameData.playerTeam) return;
-
-  container.innerHTML = `
-    <div class="welcome-banner" style="background:#161b22; padding:15px; border-radius:8px; border:1px solid #30363d; margin-bottom:15px;">
-      <h2 style="color: #f39c12; margin-bottom: 5px;">🎉 Selamat Bergabung di Tim ${gameData.playerTeam.name}!</h2>
-      <p style="color: #fff; font-size: 14px; font-weight:600; font-style: italic;">
-        "Selamat bertugas! Kelola tim balap Anda untuk merebut mahkota Juara Grand Prix."
-      </p>
-      <p style="color: #8b949e; font-size: 12px; margin-top: 8px;">
-        ⚠️ <strong>Persiapan Karir:</strong> Beli 2 Mobil, kontrak 2 Pembalap & minimal 1 Mekanik dengan modal awal Anda.
-      </p>
-    </div>
-  `;
-}
-
-// --- KALENDER BALAP 40 SERI (DISEBAR 8 BULAN) ---
-function generate40RaceCalendar() {
-  if (typeof TRACKS_DATA === "undefined") return;
-
-  // Jika kalender sudah tersimpan dan jumlahnya 40, langsung render
-  if (gameData.calendarSchedule && gameData.calendarSchedule.length === 40) {
-    renderCalendarUI();
-    return;
-  }
-
-  const startDate = new Date(2026, 5, 1); // 1 Juni 2026
-  let schedule = [];
-
-  let poolTracks = [];
-  while (poolTracks.length < 40) {
-    poolTracks = poolTracks.concat([...TRACKS_DATA].sort(() => 0.5 - Math.random()));
-  }
-  const selectedTracks = poolTracks.slice(0, 40);
-
-  // Menyebar 40 balapan dalam waktu 8 bulan (~sekitar 6 hari sekali)
-  for (let i = 0; i < 40; i++) {
-    let raceDate = new Date(startDate);
-    raceDate.setDate(startDate.getDate() + Math.floor(i * 5.8));
-
-    schedule.push({
-      raceNum: i + 1,
-      dateStr: raceDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-      dateRaw: raceDate.toISOString(),
-      isRace: true,
-      track: selectedTracks[i]
-    });
-  }
-
-  gameData.calendarSchedule = schedule;
-  saveGameToStorage();
-  renderCalendarUI();
-}
-
-function renderCalendarUI() {
-  const container = document.getElementById("calendar-container");
-  if (!container) return;
-
-  if (!gameData.calendarSchedule || gameData.calendarSchedule.length === 0) {
-    container.innerHTML = `<p style="color:#8b949e; grid-column:1/-1;">Sedang memuat jadwal balap...</p>`;
-    return;
-  }
-
-  container.innerHTML = gameData.calendarSchedule.map((s, idx) => `
-    <div class="calendar-day race-day ${idx === gameData.currentCalendarIndex ? 'active-day' : ''}" style="background:#161b22; border:1px solid ${idx === gameData.currentCalendarIndex ? '#f39c12':'#30363d'}; padding:10px; border-radius:6px;">
-      <div>
-        <span class="date-num" style="font-size:11px; color:#8b949e;">📅 ${s.dateStr}</span>
-        <div class="event-title" style="font-weight:bold; color:#fff; font-size:12px; margin-top:2px;">🏁 GP #${s.raceNum}: ${s.track.name}</div>
-      </div>
-      <div style="font-size:10px; color:#f39c12; margin-top:4px;">${s.track.type || 'Sirkuit'} (${s.track.lengthKm || 3.8} KM)</div>
-    </div>
-  `).join('');
-}
-
-function advanceCalendarDay() {
-  AudioEngine.playClick();
-  if (!gameData.currentDate) gameData.currentDate = new Date(2026, 5, 1);
-  gameData.currentDate.setDate(gameData.currentDate.getDate() + 1);
-
-  // Potongan Mingguan (Senin)
-  if (gameData.currentDate.getDay() === 1) {
-    const weeklyCost = 5000000;
-    gameData.cash -= weeklyCost;
-    addCommentary(`💸 [FINANSIAL] Biaya operasional mingguan terpotong Rp ${weeklyCost.toLocaleString('id-ID')}`);
-  }
-
-  // Event Acak Harian (Peluang 20%)
-  if (Math.random() < 0.20) {
-    triggerRandomDailyEvent();
-  }
-
-  updateFinancialUI();
-
-  if (gameData.calendarSchedule.length > 0 && gameData.currentCalendarIndex < gameData.calendarSchedule.length) {
-    const currentEvent = gameData.calendarSchedule[gameData.currentCalendarIndex];
-    renderCalendarUI();
-
-    if (gameData.currentDate.getTime() >= new Date(currentEvent.dateRaw || currentEvent.dateStr).getTime()) {
-      activeRaceTrack = currentEvent.track;
-      alert(`🏁 HARI BALAPAN GP #${currentEvent.raceNum}! Sirkuit ${activeRaceTrack.name}.`);
-      switchTab('tab-race');
-      prepareRaceGrid();
-    }
-  }
-}
-
-function triggerRandomDailyEvent() {
-  const events = [
-    { text: "👨‍🔧 Mekanik menemukan setup aerodinamis baru! (+3 Power/Speed Mobil)", action: () => { if(gameData.myCars[0]) gameData.myCars[0].baseSpeed += 3; } },
-    { text: "💸 Masalah kelistrikan bengkel! Kas berkurang Rp 10.000.000", action: () => { gameData.cash -= 10000000; } },
-    { text: "🌟 Driver mendapatkan liputan media nasional! Moral tim meningkat.", action: () => { gameData.cash += 5000000; } },
-    { text: "🌧️ Cuaca buruk melanda area bengkel, perawatan ringan diselesaikan.", action: () => {} }
-  ];
-  const ev = events[Math.floor(Math.random() * events.length)];
-  ev.action();
-  alert(`[BERITA TIM] ${ev.text}`);
-}
-
-// --- SPONSOR TAB ---
-function renderSponsorTab() {
-  const container = document.getElementById('sponsor-cards-container');
-  if (!container) return;
-
-  const sponsorList = [
-    { id: 'sp1', name: 'Pertamina Turbo', bonusPerRace: 25000000, req: 'Finish Top 5' },
-    { id: 'sp2', name: 'Bank Central Asia', bonusPerRace: 40000000, req: 'Juara 1' },
-    { id: 'sp3', name: 'Kopi Kapal Api', bonusPerRace: 15000000, req: 'Selesaikan Balapan' }
-  ];
-
-  container.innerHTML = sponsorList.map(s => {
-    const isSigned = gameData.activeSponsors && gameData.activeSponsors.includes(s.id);
-    return `
-      <div class="card-item panel-box">
-        <h4>🏢 ${s.name}</h4>
-        <p style="font-size:12px; margin-top:4px;">Bonus: Rp ${s.bonusPerRace.toLocaleString('id-ID')} / Race</p>
-        <p style="font-size:12px; color:#f39c12;">Syarat Target: ${s.req}</p>
-        <button class="btn-action" style="margin-top:10px; background:${isSigned ? '#238636':'#1f6feb'};" ${isSigned ? 'disabled':''} onclick="signSponsor('${s.id}')">
-          ${isSigned ? 'Telah Terkontrak' : 'Tanda Tangan Kontrak'}
-        </button>
-      </div>
-    `;
-  }).join('');
-}
-
-function signSponsor(id) {
-  AudioEngine.playClick();
-  if (!gameData.activeSponsors) gameData.activeSponsors = [];
-  if (!gameData.activeSponsors.includes(id)) {
-    gameData.activeSponsors.push(id);
-    updateFinancialUI();
-    renderSponsorTab();
-  }
-}
-
-// --- GARASI & DIAGNOSTIK MOBIL ---
-function renderMyGarageCars() {
-  const container = document.getElementById("my-garage-container");
-  if (!container) return;
-
-  if (gameData.myCars.length === 0) {
-    container.innerHTML = `<p style="color:#e74c3c; grid-column:1/-1;">⚠️ Belum ada mobil di garasi tim Anda. Silakan beli di menu Toko Mobil Awal.</p>`;
-    return;
-  }
-
-  container.innerHTML = gameData.myCars.map((car, idx) => `
-    <div class="card-item">
-      <div>
-        <div class="card-header">
-          <span class="card-title">🚐 ${car.name} (Mobil #${idx + 1})</span>
-          <span class="card-badge">Base Speed: ${car.baseSpeed} KM/H</span>
-        </div>
-        
-        <div class="card-stats">
-          <div class="stat-row">
-            <span>Kondisi Mesin:</span>
-            <span>${car.durabilityEngine || 100}%</span>
-          </div>
-          <div class="durability-bar">
-            <div class="durability-fill" style="width: ${car.durabilityEngine || 100}%; background: ${getDurabilityColor(car.durabilityEngine || 100)};"></div>
-          </div>
-
-          <div class="stat-row" style="margin-top: 8px;">
-            <span>Kondisi Bodi/Sasis:</span>
-            <span>${car.durabilityBody || 100}%</span>
-          </div>
-          <div class="durability-bar">
-            <div class="durability-fill" style="width: ${car.durabilityBody || 100}%; background: ${getDurabilityColor(car.durabilityBody || 100)};"></div>
-          </div>
-
-          <div class="stat-row" style="margin-top: 8px;">
-            <span>Kondisi Ban (Kompon):</span>
-            <span>${car.durabilityTires || 100}%</span>
-          </div>
-          <div class="durability-bar">
-            <div class="durability-fill" style="width: ${car.durabilityTires || 100}%; background: ${getDurabilityColor(car.durabilityTires || 100)};"></div>
-          </div>
-        </div>
-      </div>
-
-      <div style="font-size:11px; color:#8b949e; margin-top:10px; border-top:1px solid #30363d; padding-top:6px;">
-        🛠️ Bengkel Lv. ${gameData.workshopLevel} | Perbaikan Manual Rp 15.000.000
-      </div>
-      <button class="btn-action" style="margin-top:8px; background:#d35400;" onclick="manualRepairCar(${idx})">👨‍🔧 Servis Full Mobil</button>
-    </div>
-  `).join('');
-}
-
-function manualRepairCar(idx) {
-  if (gameData.cash >= 15000000) {
-    AudioEngine.playClick();
-    gameData.cash -= 15000000;
-    gameData.myCars[idx].durabilityEngine = 100;
-    gameData.myCars[idx].durabilityBody = 100;
-    gameData.myCars[idx].durabilityTires = 100;
-    updateFinancialUI();
-    renderMyGarageCars();
-  } else {
-    alert("❌ Modal kas tidak mencukupi!");
-  }
-}
-
-function getDurabilityColor(val) {
-  if (val > 70) return "#2ecc71";
-  if (val > 35) return "#f39c12";
-  return "#e74c3c";
-}
-
-// --- LIVE RACE ENGINE, PIT STOP & CANVAS RADAR ---
-function prepareRaceGrid() {
-  if (!activeRaceTrack && typeof TRACKS_DATA !== "undefined") {
-    activeRaceTrack = TRACKS_DATA[0];
-  }
-
-  const weatherList = [
-    { type: 'Cerah ☀️', grip: 1.0, rec: 'Soft' },
-    { type: 'Mendung ☁️', grip: 0.95, rec: 'Medium' },
-    { type: 'Hujan Deras 🌧️', grip: 0.70, rec: 'Wet' }
-  ];
-  liveRaceData.weather = weatherList[Math.floor(Math.random() * weatherList.length)];
-
-  document.getElementById("race-track-name").innerText = `🏁 ${activeRaceTrack.name} (${activeRaceTrack.lengthKm} KM)`;
-  document.getElementById("race-status").innerText = `KONDISI: ${liveRaceData.weather.type} (Grip: ${liveRaceData.weather.grip})`;
-  document.getElementById("btn-toggle-race").innerText = "🟢 MULAI START BALAPAN";
-  isRacing = false;
-  currentLapGlobal = 1;
-  totalLaps = activeRaceTrack.lapsDefault || 20;
-  raceElapsedTime = 0;
-
-  addCommentary(`🎙️ [START] Cuaca sirkuit saat ini ${liveRaceData.weather.type}. Rekomendasi Ban: ${liveRaceData.weather.rec}`);
-
-  raceCars = [];
-  let usedNumbers = new Set();
-  function getUniqueCarNumber() {
-    let num;
-    do { num = Math.floor(Math.random() * 999) + 1; } while (usedNumbers.has(num));
-    usedNumbers.add(num);
-    return num;
-  }
-
-  let globalCarIdx = 0;
-
-  TEAMS_DATA.forEach((team) => {
-    const isPlayer = (gameData.playerTeam && team.id === gameData.playerTeam.id);
-
-    for (let i = 0; i < 2; i++) {
-      let driverName = `Pembalap ${team.name} #${i + 1}`;
-      let carNumber = getUniqueCarNumber();
-      let actualSpeed = 120 + Math.random() * 20;
-
-      if (isPlayer) {
-        let pDriver = gameData.myDrivers[i];
-        let pCar = gameData.myCars[i];
-        if (pDriver) driverName = pDriver.name;
-        if (pCar) {
-          actualSpeed = pCar.baseSpeed + ((pCar.baseHandling || 50) * 0.2);
+        const remaining = otherTeams.filter(t => t.id !== opponent.id);
+        for (let i = 0; i < remaining.length; i += 2) {
+            if (remaining[i + 1]) {
+                matches.push({
+                    home: remaining[i],
+                    away: remaining[i + 1],
+                    played: false, homeSets: 0, awaySets: 0
+                });
+            }
         }
-      } else {
-        let matchKeys = Object.keys(gameData.driverStandings).filter(k => gameData.driverStandings[k].teamId === team.id);
-        if (matchKeys[i]) driverName = matchKeys[i];
-      }
 
-      raceCars.push({
-        id: `car_${globalCarIdx + 1}`,
-        number: carNumber,
-        teamId: team.id,
-        pos: globalCarIdx + 1,
-        driverName: driverName,
-        teamName: team.name,
-        teamColor: team.color,
-        isPlayer: isPlayer,
-        distance: 0,
-        currentLap: 1,
-        speed: actualSpeed,
-        durability: 100,
-        tyre: isPlayer ? liveRaceData.userTyreChoice : (Math.random() < 0.5 ? 'Soft' : 'Medium'),
-        totalTimeMs: 0,
-        lastLapTime: 0,
-        bestLapTime: null,
-        lapStartTime: 0
-      });
-
-      globalCarIdx++;
+        gameState.schedules.push({ week: w, matches });
     }
-  });
-
-  renderTimingTower();
-  drawRaceRadar();
 }
 
-function toggleRaceEngine() {
-  if (!isRacing) {
-    AudioEngine.playRaceEngine();
-    isRacing = true;
-    document.getElementById("race-status").innerText = `RACING (${liveRaceData.weather.type}) 🟢`;
-    document.getElementById("btn-toggle-race").innerText = "⏸️ PAUSE BALAPAN";
-    document.getElementById("btn-toggle-race").style.background = "#e74c3c";
-    
-    addCommentary(`🏁 [GREEN FLAG] ${getRandomArrayItem(COMMENTARY_VOCAB.starts)}`);
-    raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
-  } else {
-    AudioEngine.playClick();
-    isRacing = false;
-    clearInterval(raceInterval);
-    document.getElementById("race-status").innerText = "PAUSED 🟡";
-    document.getElementById("btn-toggle-race").innerText = "▶️ LANJUTKAN BALAPAN";
-    document.getElementById("btn-toggle-race").style.background = "#238636";
-  }
-}
-
-function setSimSpeed(speed) {
-  AudioEngine.playClick();
-  gameData.simSpeed = speed;
-  if (isRacing) {
-    clearInterval(raceInterval);
-    raceInterval = setInterval(updateRaceLogic, 100 / gameData.simSpeed);
-  }
-}
-
-function triggerPitStop() {
-  if (!isRacing) return;
-  AudioEngine.playClick();
-  
-  let playerCars = raceCars.filter(c => c.isPlayer);
-  playerCars.forEach(p => {
-    p.totalTimeMs += 15000; // Penalti pit stop 15 detik
-    p.durability = 100;
-    p.speed += 2; // Penggantian ban baru
-    addCommentary(`👨‍🔧 [PIT STOP] ${p.driverName} masuk pit stop! Ban baru terpasang & durabilitas dipulihkan (+15s penalty).`);
-  });
-
-  if (gameData.myCars.length > 0) {
-    gameData.myCars.forEach(car => {
-      car.durabilityEngine = 100;
-      car.durabilityBody = 100;
-      car.durabilityTires = 100;
-    });
-    renderMyGarageCars();
-  }
-}
-
-function updateRaceLogic() {
-  let finished = true;
-  raceElapsedTime += (100 * gameData.simSpeed);
-
-  raceCars.forEach(car => {
-    if (car.currentLap <= totalLaps) {
-      finished = false;
-      car.totalTimeMs += (100 * gameData.simSpeed);
-      
-      // Pengaruh Cuaca & Ban
-      let weatherGrip = liveRaceData.weather.grip;
-      if (car.tyre === liveRaceData.weather.rec) weatherGrip += 0.1;
-      
-      // Keausan Ban/Mobil
-      car.durability -= (0.05 * gameData.simSpeed);
-      let wearPenalty = car.durability < 40 ? 0.85 : 1.0;
-
-      car.distance += ((car.speed * weatherGrip * wearPenalty) * 0.15) + (Math.random() * 2);
-
-      let calcLap = Math.floor(car.distance / 1000) + 1;
-      if (calcLap > car.currentLap && car.currentLap <= totalLaps) {
-        let lapTime = (car.totalTimeMs - car.lapStartTime) / 1000;
-        car.lastLapTime = lapTime;
-        if (!car.bestLapTime || lapTime < car.bestLapTime) car.bestLapTime = lapTime;
-
-        car.currentLap = calcLap;
-        car.lapStartTime = car.totalTimeMs;
-      }
+function generateMarketPool() {
+    gameState.marketPlayers = [];
+    for (let i = 0; i < 20; i++) {
+        const p = createRandomPlayer('mkt_p', ['E', 'D', 'C', 'B', 'A', 'S', 'SS']);
+        if (Math.random() > 0.5) {
+            p.clubName = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
+        }
+        gameState.marketPlayers.push(p);
     }
-  });
+}
 
-  raceCars.sort((a, b) => b.distance - a.distance);
-  raceCars.forEach((c, idx) => c.pos = idx + 1);
+// HEADER UI UPDATES
+function updateHeaderUI() {
+    document.getElementById('header-team-name').innerText = gameState.teamName;
+    document.getElementById('header-team-logo').innerText = gameState.teamName.charAt(0).toUpperCase();
+    document.getElementById('header-manager-name').innerText = `Manager: ${gameState.managerName}`;
+    document.getElementById('header-week').innerText = `${gameState.currentWeek} / ${gameState.maxWeeks}`;
+    document.getElementById('header-budget').innerText = formatRupiah(gameState.budget);
 
-  currentLapGlobal = Math.min(raceCars[0].currentLap, totalLaps);
-  document.getElementById("race-lap-counter").innerText = `LAP ${currentLapGlobal} / ${totalLaps}`;
+    const tierInfo = LEAGUE_TIERS[gameState.userLeagueTier];
+    document.getElementById('header-tier-name').innerText = tierInfo ? tierInfo.short : `Liga ${gameState.userLeagueTier}`;
 
-  if (Math.random() < 0.08) {
-    let topCar = raceCars[0];
-    let fightCar = raceCars[1];
-    if (Math.random() < 0.5 && fightCar) {
-      addCommentary(`🎙️ [LAP ${currentLapGlobal}] ${getRandomArrayItem(COMMENTARY_VOCAB.battles)} (${topCar.driverName} vs ${fightCar.driverName})`);
+    const foreignCount = countForeignPlayers(gameState.roster);
+    document.getElementById('header-foreign-count').innerText = `${foreignCount} / 2`;
+
+    const currentTierTeams = gameState.leagues[gameState.userLeagueTier] || [];
+    const sortedTeams = [...currentTierTeams].sort((a, b) => b.points - a.points || (b.setW - b.setL) - (a.setW - a.setL));
+    const userRank = sortedTeams.findIndex(t => t.isUser) + 1;
+    document.getElementById('header-rank').innerText = `#${userRank || 1}`;
+
+    const unhandled = gameState.inboxMessages.filter(m => !m.handled).length;
+    const badge = document.getElementById('inbox-badge-count');
+    if (unhandled > 0) {
+        badge.innerText = unhandled;
+        badge.classList.remove('hidden');
     } else {
-      addCommentary(`⚡ [LAP ${currentLapGlobal}] ${getRandomArrayItem(COMMENTARY_VOCAB.overtakes)}`);
+        badge.classList.add('hidden');
     }
-  }
-
-  renderTimingTower();
-  drawRaceRadar();
-
-  if (finished || currentLapGlobal > totalLaps) {
-    clearInterval(raceInterval);
-    isRacing = false;
-    document.getElementById("race-status").innerText = "CHECKERED FLAG 🏁";
-    document.getElementById("btn-toggle-race").innerText = "Selesai Balapan";
-    document.getElementById("btn-toggle-race").style.background = "#238636";
-    
-    AudioEngine.playVictory();
-    addCommentary(`🏁 [FINISH] ${getRandomArrayItem(COMMENTARY_VOCAB.finishes)} Pemenang: #${raceCars[0].number} ${raceCars[0].driverName}!`);
-
-    calculateRacePoints();
-    showPodiumModal();
-    repairCarsPostRace();
-    gameData.currentCalendarIndex++;
-  }
 }
 
-function renderTimingTower() {
-  const tbody = document.getElementById("timing-tower-body");
-  if (!tbody) return;
+// TAB SWITCHING
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-400');
+    });
+    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-slate-800', 'text-slate-400');
+        activeBtn.classList.add('bg-blue-600', 'text-white');
+    }
 
-  let leaderDist = raceCars[0]?.distance || 0;
+    const tabs = ['squad', 'sponsor', 'standings', 'match', 'market', 'inbox', 'news'];
+    tabs.forEach(t => {
+        const content = document.getElementById(`tab-content-${t}`);
+        if (content) content.classList.add('hidden');
+    });
 
-  tbody.innerHTML = raceCars.map((car, idx) => {
-    let gapText = idx === 0 ? "LEADER" : `+${((leaderDist - car.distance) / 100).toFixed(2)}s`;
+    const activeContent = document.getElementById(`tab-content-${tabName}`);
+    if (activeContent) activeContent.classList.remove('hidden');
 
-    return `
-      <tr style="${car.isPlayer ? 'background: rgba(243, 156, 18, 0.2); font-weight:bold;' : ''}">
-        <td><strong>#${car.pos}</strong></td>
-        <td>
-          <div class="chamfer-badge" style="background: ${car.teamColor}; padding:2px 6px; border-radius:4px; font-size:11px;">
-            ${car.teamName}
-          </div>
-        </td>
-        <td style="color:#fff;">
-          <span style="color:#f39c12; font-family:monospace; margin-right:6px;">[#${car.number}]</span>${car.driverName} ${car.isPlayer ? '⭐' : ''}
-        </td>
-        <td style="font-family:monospace; color:#2ecc71;">${formatFullTime(car.totalTimeMs)}</td>
-        <td>${gapText}</td>
-        <td>${car.tyre || 'Soft'}</td>
-        <td><span style="color:${car.durability < 40 ? '#e74c3c':'#2ecc71'}">${Math.max(0, car.durability).toFixed(0)}%</span></td>
-        <td style="color:#f39c12;">${car.bestLapTime ? car.bestLapTime.toFixed(3) + 's' : '-'}</td>
-      </tr>
+    if (tabName === 'squad') renderSquadUI();
+    if (tabName === 'sponsor') renderSponsorsUI();
+    if (tabName === 'standings') renderStandingsUI();
+    if (tabName === 'match') renderMatchUI();
+    if (tabName === 'market') renderTransferMarket();
+    if (tabName === 'inbox') renderInboxUI();
+    if (tabName === 'news') renderNewsUI();
+}
+
+// SQUAD RENDER & SWAP
+function renderSquadUI() {
+    document.getElementById('lineup-avg-ovr').innerText = getAverageLineupOvr();
+
+    const courtPositions = [4, 3, 2, 5, 6, 1];
+    const starters = gameState.roster.filter(p => gameState.startingLineupIds.includes(p.id));
+
+    courtPositions.forEach((posNum, idx) => {
+        const el = document.getElementById(`court-pos-${posNum}`);
+        if (!el) return;
+        const p = starters[idx];
+
+        if (p) {
+            el.innerHTML = `
+                <div class="text-[10px] font-bold text-amber-400 uppercase">Pos ${posNum}</div>
+                <p class="font-bold text-xs text-white truncate mt-0.5">${p.flag} ${p.name}</p>
+                <p class="text-[10px] text-slate-300">${p.position}</p>
+                <span class="text-[10px] font-bold text-emerald-400 mt-1">OVR ${getEffectiveOvr(p)}</span>
+            `;
+        } else {
+            el.innerHTML = `<span class="text-xs text-slate-500 italic">Kosong</span>`;
+        }
+    });
+
+    const tbody = document.getElementById('squad-roster-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const sortedRoster = [...gameState.roster].sort((a, b) => {
+        const aIsStarter = gameState.startingLineupIds.includes(a.id) ? 1 : 0;
+        const bIsStarter = gameState.startingLineupIds.includes(b.id) ? 1 : 0;
+        return bIsStarter - aIsStarter;
+    });
+
+    sortedRoster.forEach(p => {
+        const isStarter = gameState.startingLineupIds.includes(p.id);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/50 transition cursor-pointer';
+        tr.onclick = (e) => {
+            if (e.target.tagName !== 'BUTTON') openPlayerModal(p.id);
+        };
+
+        tr.innerHTML = `
+            <td class="p-3">
+                ${isStarter ? '<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded">UTAMA</span>' : '<span class="bg-slate-700 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded">CADANGAN</span>'}
+            </td>
+            <td class="p-3 font-bold text-white">${p.flag} ${p.name}</td>
+            <td class="p-3 text-slate-300">${p.position}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${TIERS[p.tier].color}">${p.tier}</span></td>
+            <td class="p-3 text-center font-bold text-amber-400">${getEffectiveOvr(p)} <span class="text-[10px] text-slate-500">(${p.ovr})</span></td>
+            <td class="p-3 text-center font-bold text-emerald-400">${p.stamina}%</td>
+            <td class="p-3 font-mono text-emerald-300">${formatRupiah(p.salary)}</td>
+            <td class="p-3 font-bold ${p.contractMatches <= 2 ? 'text-rose-400' : 'text-slate-200'}">${p.contractMatches} Match</td>
+            <td class="p-3 font-mono text-amber-300">${formatRupiah(p.value)}</td>
+            <td class="p-3 text-center">
+                <button onclick="event.stopPropagation(); toggleStarter('${p.id}')" class="px-2.5 py-1 ${isStarter ? 'bg-amber-600/20 text-amber-400 border border-amber-500/30' : 'bg-blue-600 text-white'} rounded text-[11px] font-bold hover:opacity-90 transition">
+                    ${isStarter ? 'Bangku Cadangan' : 'Jadikan Starter'}
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function toggleStarter(playerId) {
+    const isStarter = gameState.startingLineupIds.includes(playerId);
+    if (isStarter) {
+        openSwapModal(playerId);
+    } else {
+        if (gameState.startingLineupIds.length >= 6) {
+            openSwapModal(gameState.startingLineupIds[0]);
+            return;
+        }
+        gameState.startingLineupIds.push(playerId);
+        renderSquadUI();
+    }
+}
+
+function openSwapModal(starterId) {
+    const starter = gameState.roster.find(p => p.id === starterId);
+    if (!starter) return;
+
+    currentSwapStarterId = starterId;
+    const starterCard = document.getElementById('swap-starter-card');
+    
+    starterCard.innerHTML = `
+        <div class="flex justify-between items-center">
+            <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded">PEMAIN UTAMA KELUAR</span>
+            <span class="text-xs font-bold text-emerald-400 font-mono">OVR ${getEffectiveOvr(starter)} (${starter.ovr})</span>
+        </div>
+        <div class="flex items-center justify-between mt-1">
+            <div>
+                <h4 class="font-bold text-white text-sm">${starter.flag} ${starter.name}</h4>
+                <p class="text-xs text-slate-400">${starter.position} • Stamina: ${starter.stamina}%</p>
+            </div>
+            <div class="grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SPK</span><b>${starter.skills.spike}</b></div>
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">BLK</span><b>${starter.skills.block}</b></div>
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SRV</span><b>${starter.skills.serve}</b></div>
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">RCV</span><b>${starter.skills.receive}</b></div>
+            </div>
+        </div>
     `;
-  }).join('');
-}
 
-function drawRaceRadar() {
-  const canvas = document.getElementById('race-radar-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Outer Track
-  ctx.strokeStyle = '#30363d';
-  ctx.lineWidth = 10;
-  ctx.beginPath();
-  ctx.ellipse(canvas.width / 2, canvas.height / 2, 240, 40, 0, 0, 2 * Math.PI);
-  ctx.stroke();
+    const benched = gameState.roster.filter(p => !gameState.startingLineupIds.includes(p.id));
+    const listEl = document.getElementById('swap-candidates-list');
+    listEl.innerHTML = '';
 
-  // Draw Cars on Track Radar
-  raceCars.forEach((car, idx) => {
-    const progress = ((car.distance % 1000) / 1000);
-    const angle = progress * 2 * Math.PI;
-    const x = canvas.width / 2 + 240 * Math.cos(angle);
-    const y = canvas.height / 2 + 40 * Math.sin(angle);
-    
-    ctx.fillStyle = car.isPlayer ? '#f1c40f' : (idx === 0 ? '#2ecc71' : '#e74c3c');
-    ctx.beginPath();
-    ctx.arc(x, y, car.isPlayer ? 6 : 4, 0, 2 * Math.PI);
-    ctx.fill();
-  });
-}
-
-function addCommentary(msg) {
-  const box = document.getElementById("race-commentary-stream");
-  if (!box) return;
-
-  const line = document.createElement("div");
-  line.className = "commentary-line";
-  line.innerText = msg;
-  box.appendChild(line);
-  box.scrollTop = box.scrollHeight;
-}
-
-function formatFullTime(ms) {
-  let totalSec = Math.floor(ms / 1000);
-  let min = Math.floor(totalSec / 60);
-  let sec = totalSec % 60;
-  let milli = Math.floor(ms % 1000);
-  return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}.${milli.toString().padStart(3, '0')}`;
-}
-
-function getRandomArrayItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-// --- POIN & PODIUM MODAL ---
-function calculateRacePoints() {
-  raceCars.forEach((car, index) => {
-    let pts = RACE_POINTS_SYSTEM[index] || 0;
-    if (pts > 0) {
-      if (gameData.driverStandings[car.driverName]) {
-        gameData.driverStandings[car.driverName].points += pts;
-      }
-      if (gameData.teamStandings[car.teamId]) {
-        gameData.teamStandings[car.teamId].points += pts;
-      }
+    if (benched.length === 0) {
+        listEl.innerHTML = `<p class="text-center text-xs text-slate-500 py-4 italic">Tidak ada pemain cadangan yang tersedia.</p>`;
+    } else {
+        benched.forEach(benchP => {
+            const diffOvr = getEffectiveOvr(benchP) - getEffectiveOvr(starter);
+            const card = document.createElement('div');
+            card.className = 'bg-slate-800 border border-slate-700 p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-blue-500 transition';
+            
+            card.innerHTML = `
+                <div>
+                    <h5 class="font-bold text-white text-xs">${benchP.flag} ${benchP.name} <span class="text-[10px] font-normal border px-1 rounded ${TIERS[benchP.tier].color}">${benchP.tier}</span></h5>
+                    <p class="text-[11px] text-slate-400 mt-0.5">${benchP.position} • Stamina: <b class="text-emerald-400">${benchP.stamina}%</b></p>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="font-bold ${diffOvr >= 0 ? 'text-emerald-400' : 'text-rose-400'}">OVR ${getEffectiveOvr(benchP)} (${diffOvr >= 0 ? '+' + diffOvr : diffOvr})</span>
+                    <button onclick="executeSwap('${benchP.id}')" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Tukar</button>
+                </div>
+            `;
+            listEl.appendChild(card);
+        });
     }
-  });
 
-  // Pay Sponsor Bonuses if requirements are met
-  if (gameData.activeSponsors && gameData.activeSponsors.length > 0) {
-    let playerBestPos = raceCars.findIndex(c => c.isPlayer) + 1;
-    if (playerBestPos > 0) {
-      if (gameData.activeSponsors.includes('sp3')) gameData.cash += 15000000;
-      if (gameData.activeSponsors.includes('sp1') && playerBestPos <= 5) gameData.cash += 25000000;
-      if (gameData.activeSponsors.includes('sp2') && playerBestPos === 1) gameData.cash += 40000000;
+    document.getElementById('modal-swap-player').classList.remove('hidden');
+}
+
+function executeSwap(candidateId) {
+    if (!currentSwapStarterId) return;
+
+    const idx = gameState.startingLineupIds.indexOf(currentSwapStarterId);
+    if (idx !== -1) {
+        gameState.startingLineupIds[idx] = candidateId;
     }
-  }
 
-  renderStandingsUI();
-  updateFinancialUI();
+    closeModal('modal-swap-player');
+    currentSwapStarterId = null;
+    renderSquadUI();
 }
 
-function showPodiumModal() {
-  const modal = document.getElementById("podium-modal");
-  const trackNameEl = document.getElementById("podium-track-name");
-  const container = document.getElementById("podium-winners-display");
+// SPONSOR RENDER
+function renderSponsorsUI() {
+    const types = ['primary', 'secondary', 'extra'];
+    const titles = { primary: 'Sponsor Utama', secondary: 'Sponsor Sekunder', extra: 'Sponsor Tambahan' };
 
-  if (!modal || !container) return;
-  trackNameEl.innerText = `Grand Prix: ${activeRaceTrack ? activeRaceTrack.name : ''}`;
+    types.forEach(type => {
+        const card = document.getElementById(`sponsor-card-${type}`);
+        if (!card) return;
 
-  let p1 = raceCars[0];
-  let p2 = raceCars[1];
-  let p3 = raceCars[2];
-
-  container.innerHTML = `
-    <div class="podium-step podium-2">
-      <div style="font-size:10px;">POS 2 (+18 PTS)</div>
-      <div style="font-size:12px; margin-top:4px;">[#${p2 ? p2.number : '-'}]</div>
-      <div>${p2 ? p2.driverName : '-'}</div>
-    </div>
-    <div class="podium-step podium-1">
-      <div style="font-size:18px;">👑</div>
-      <div style="font-size:10px;">JUARA 1 (+25 PTS)</div>
-      <div style="font-size:12px; margin-top:4px;">[#${p1 ? p1.number : '-'}]</div>
-      <div>${p1 ? p1.driverName : '-'}</div>
-    </div>
-    <div class="podium-step podium-3">
-      <div style="font-size:10px;">POS 3 (+15 PTS)</div>
-      <div style="font-size:12px; margin-top:4px;">[#${p3 ? p3.number : '-'}]</div>
-      <div>${p3 ? p3.driverName : '-'}</div>
-    </div>
-  `;
-
-  modal.style.display = "flex";
+        const sp = gameState.sponsors[type];
+        card.innerHTML = `
+            <div>
+                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">${titles[type]}</span>
+                <h4 class="font-extrabold text-base text-white mt-1">${sp.name}</h4>
+                <p class="text-xs text-slate-400 mt-2"><i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> Target: <b>${sp.goal}</b></p>
+            </div>
+            <div class="bg-slate-950 p-3 rounded-xl flex items-center justify-between">
+                <span class="text-xs text-slate-400">Nilai Kontrak:</span>
+                <b class="text-emerald-400 text-sm font-bold">${formatRupiah(sp.fee)}</b>
+            </div>
+            ${sp.claimed ? 
+                '<button disabled class="w-full py-2 bg-slate-800 text-emerald-400 font-bold rounded-xl text-xs cursor-not-allowed">✓ Kontrak Aktif</button>' :
+                `<button onclick="claimSponsor('${type}')" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition">Tanda Tangan Kontrak</button>`
+            }
+        `;
+    });
 }
 
-function closePodiumAndShowStandings() {
-  AudioEngine.playClick();
-  document.getElementById("podium-modal").style.display = "none";
-  switchTab('tab-standings');
+function claimSponsor(type) {
+    const sp = gameState.sponsors[type];
+    if (sp && !sp.claimed) {
+        sp.claimed = true;
+        gameState.budget += sp.fee;
+        showAlert('Sponsor Ditandatangani!', `Klub menerima dana ${formatRupiah(sp.fee)} dari ${sp.name}!`, 'fa-handshake');
+        updateHeaderUI();
+        renderSponsorsUI();
+    }
 }
 
+// STANDINGS RENDER
 function renderStandingsUI() {
-  const driverBody = document.getElementById("driver-standings-body");
-  const teamBody = document.getElementById("team-standings-body");
+    const tbody = document.getElementById('standings-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
 
-  if (driverBody) {
-    let sortedDrivers = Object.values(gameData.driverStandings).sort((a, b) => b.points - a.points);
-    driverBody.innerHTML = sortedDrivers.map((d, idx) => `
-      <tr style="${gameData.playerTeam && d.teamId === gameData.playerTeam.id ? 'background:rgba(243,156,18,0.15);' : ''}">
-        <td><strong>#${idx + 1}</strong></td>
-        <td style="font-weight:bold; color:#fff;">${d.name}</td>
-        <td><span style="color:${d.teamColor}; font-weight:bold;">●</span> ${d.teamName}</td>
-        <td style="color:#f39c12; font-weight:bold;">${d.points} PTS</td>
-      </tr>
-    `).join('');
-  }
+    const selectEl = document.getElementById('select-league-tier');
+    const selectedTier = selectEl ? parseInt(selectEl.value) : gameState.userLeagueTier;
 
-  if (teamBody) {
-    let sortedTeams = Object.values(gameData.teamStandings).sort((a, b) => b.points - a.points);
-    teamBody.innerHTML = sortedTeams.map((t, idx) => `
-      <tr style="${gameData.playerTeam && t.name === gameData.playerTeam.name ? 'background: rgba(243, 156, 18, 0.15);' : ''}">
-        <td><strong>#${idx + 1}</strong></td>
-        <td><span style="color:${t.color}; font-weight:bold;">●</span> ${t.name}</td>
-        <td style="color:#2ecc71; font-weight:bold;">${t.points} PTS</td>
-      </tr>
-    `).join('');
-  }
-}
+    const titleEl = document.getElementById('standings-league-title');
+    if (titleEl) titleEl.innerText = LEAGUE_TIERS[selectedTier] ? LEAGUE_TIERS[selectedTier].name : `Liga ${selectedTier}`;
 
-function repairCarsPostRace() {
-  if (gameData.myCars.length === 0) return;
-  let repairRate = (gameData.myMechanics.length * 15) + (gameData.workshopLevel * 5);
+    const currentTierTeams = gameState.leagues[selectedTier] || [];
+    const sortedTeams = [...currentTierTeams].sort((a, b) => b.points - a.points || (b.setW - b.setL) - (a.setW - a.setL));
 
-  gameData.myCars.forEach(car => {
-    car.durabilityEngine = Math.max(20, (car.durabilityEngine || 100) - Math.floor(Math.random() * 20));
-    car.durabilityBody = Math.max(20, (car.durabilityBody || 100) - Math.floor(Math.random() * 15));
-    car.durabilityTires = Math.max(10, (car.durabilityTires || 100) - Math.floor(Math.random() * 30));
+    sortedTeams.forEach((t, idx) => {
+        const rank = idx + 1;
+        let zoneBadge = '';
+        let bgClass = t.isUser ? 'bg-blue-900/30 border-l-4 border-blue-500' : 'hover:bg-slate-800/50';
 
-    car.durabilityEngine = Math.min(100, car.durabilityEngine + repairRate);
-    car.durabilityBody = Math.min(100, car.durabilityBody + repairRate);
-    car.durabilityTires = Math.min(100, car.durabilityTires + repairRate);
-  });
+        if (rank <= 2 && selectedTier > 1) {
+            zoneBadge = '<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Promosi Otomatis</span>';
+        } else if (rank <= 2 && selectedTier === 1) {
+            zoneBadge = '<span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Zona Juara</span>';
+        } else if (rank === 3 && selectedTier > 1) {
+            zoneBadge = '<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Playoff Promosi</span>';
+        } else if (rank === 13 && selectedTier < 5) {
+            zoneBadge = '<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Playoff Degradasi</span>';
+        } else if (rank >= 14 && selectedTier < 5) {
+            zoneBadge = '<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded">Degradasi Otomatis</span>';
+        } else {
+            zoneBadge = '<span class="text-slate-500 text-[10px]">-</span>';
+        }
 
-  renderMyGarageCars();
-}
-
-// --- BURSA DRIVER & MEKANIK ---
-function renderDriverCards() {
-  const container = document.getElementById("driver-cards-container");
-  if (!container || typeof INITIAL_DRIVERS === "undefined") return;
-
-  container.innerHTML = INITIAL_DRIVERS.slice(0, 10).map(drv => {
-    const isHired = gameData.myDrivers.some(d => d.id === drv.id);
-    const minOffer = Math.floor(drv.salaryPerRace * 0.5);
-    const maxOffer = Math.floor(drv.salaryPerRace * 1.5);
-
-    return `
-      <div class="card-item">
-        <div>
-          <div class="card-header">
-            <span class="card-title">🏎️ ${drv.name}</span>
-            <span class="card-badge">${drv.trait ? drv.trait.name : 'Racer'}</span>
-          </div>
-          <div class="card-stats">
-            <div class="stat-row"><span>Agresivitas:</span><span>${drv.aggression || 80}</span></div>
-            <div class="stat-row"><span>Ekspektasi:</span><span>Rp ${((drv.salaryPerRace || 5000000) / 1000000).toFixed(1)} Jt / Race</span></div>
-          </div>
-        </div>
-        
-        <div class="slider-nego-container" style="margin-top:10px;">
-          <div class="slider-group">
-            <div class="slider-label"><span>Gaji / Race:</span><strong id="val-salary-drv-${drv.id}" style="color:#2ecc71;">Rp ${((drv.salaryPerRace || 5000000) / 1000000).toFixed(1)} Jt</strong></div>
-            <input type="range" class="custom-slider" id="slider-salary-drv-${drv.id}" min="${minOffer}" max="${maxOffer}" step="500000" value="${drv.salaryPerRace || 5000000}" oninput="updateNegoCalc('drv', '${drv.id}')">
-          </div>
-          <div class="slider-group" style="margin-top: 6px;">
-            <div class="slider-label"><span>Durasi:</span><strong id="val-races-drv-${drv.id}" style="color:#f39c12;">7 Race</strong></div>
-            <input type="range" class="custom-slider" id="slider-races-drv-${drv.id}" min="7" max="20" step="1" value="7" oninput="updateNegoCalc('drv', '${drv.id}')">
-          </div>
-          <div class="total-contract-display" style="font-size:11px; margin-top:4px;">Total: <span id="total-pay-drv-${drv.id}">Rp ${((drv.salaryPerRace || 5000000) * 7).toLocaleString('id-ID')}</span></div>
-          <button class="btn-action" style="margin-top:8px;" ${isHired || gameData.myDrivers.length >= 2 ? 'disabled' : ''} onclick="negoDriver('${drv.id}')">${isHired ? 'Sudah Dikontrak' : (gameData.myDrivers.length >= 2 ? 'Slot Full (2/2)' : 'Ajukan Kontrak')}</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function negoDriver(drvId) {
-  AudioEngine.playClick();
-  const drv = INITIAL_DRIVERS.find(d => d.id === drvId);
-  const offerPerRace = parseInt(document.getElementById(`slider-salary-drv-${drvId}`).value);
-  const raceCount = parseInt(document.getElementById(`slider-races-drv-${drvId}`).value);
-
-  if (offerPerRace >= drv.salaryPerRace * 0.85) {
-    const totalPayment = offerPerRace * raceCount;
-    if (gameData.cash >= totalPayment) {
-      gameData.cash -= totalPayment;
-      gameData.myDrivers.push({ ...drv, salaryPerRace: offerPerRace, remainingRaces: raceCount });
-      alert(`✅ Negosiasi Sukses!\n${drv.name} resmi dikontrak.`);
-      updateFinancialUI();
-      renderDriverCards();
-    } else {
-      alert(`❌ Modal kas tidak cukup!`);
-    }
-  } else {
-    alert(`❌ Negosiasi Ditolak!`);
-  }
-}
-
-function renderMechanicCards() {
-  const container = document.getElementById("mechanic-cards-container");
-  if (!container || typeof MECHANICS_DATA === "undefined") return;
-
-  container.innerHTML = MECHANICS_DATA.slice(0, 10).map(mech => {
-    const isHired = gameData.myMechanics.some(m => m.id === mech.id);
-    const minOffer = Math.floor(mech.salaryPerRace * 0.5);
-    const maxOffer = Math.floor(mech.salaryPerRace * 1.5);
-
-    return `
-      <div class="card-item">
-        <div>
-          <div class="card-header">
-            <span class="card-title">👨‍🔧 ${mech.name}</span>
-            <span class="card-badge">Rating: ${mech.engineRating || 80}</span>
-          </div>
-          <div class="card-stats">
-            <div class="stat-row"><span>Spesialis:</span><span>${mech.specialty || 'Tuning'}</span></div>
-            <div class="stat-row"><span>Ekspektasi:</span><span>Rp ${((mech.salaryPerRace || 3000000) / 1000000).toFixed(1)} Jt / Race</span></div>
-          </div>
-        </div>
-        
-        <div class="slider-nego-container" style="margin-top:10px;">
-          <div class="slider-group">
-            <div class="slider-label"><span>Gaji / Race:</span><strong id="val-salary-mech-${mech.id}" style="color:#2ecc71;">Rp ${((mech.salaryPerRace || 3000000) / 1000000).toFixed(1)} Jt</strong></div>
-            <input type="range" class="custom-slider" id="slider-salary-mech-${mech.id}" min="${minOffer}" max="${maxOffer}" step="500000" value="${mech.salaryPerRace || 3000000}" oninput="updateNegoCalc('mech', '${mech.id}')">
-          </div>
-          <div class="slider-group" style="margin-top: 6px;">
-            <div class="slider-label"><span>Durasi:</span><strong id="val-races-mech-${mech.id}" style="color:#f39c12;">7 Race</strong></div>
-            <input type="range" class="custom-slider" id="slider-races-mech-${mech.id}" min="7" max="20" step="1" value="7" oninput="updateNegoCalc('mech', '${mech.id}')">
-          </div>
-          <div class="total-contract-display" style="font-size:11px; margin-top:4px;">Total: <span id="total-pay-mech-${mech.id}">Rp ${((mech.salaryPerRace || 3000000) * 7).toLocaleString('id-ID')}</span></div>
-          <button class="btn-action" style="margin-top:8px;" ${isHired ? 'disabled' : ''} onclick="negoMechanic('${mech.id}')">${isHired ? 'Sudah Dikontrak' : 'Ajukan Kontrak'}</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function negoMechanic(mechId) {
-  AudioEngine.playClick();
-  const mech = MECHANICS_DATA.find(m => m.id === mechId);
-  const offerPerRace = parseInt(document.getElementById(`slider-salary-mech-${mechId}`).value);
-  const raceCount = parseInt(document.getElementById(`slider-races-mech-${mechId}`).value);
-
-  if (offerPerRace >= mech.salaryPerRace * 0.85) {
-    const totalPayment = offerPerRace * raceCount;
-    if (gameData.cash >= totalPayment) {
-      gameData.cash -= totalPayment;
-      gameData.myMechanics.push({ ...mech, salaryPerRace: offerPerRace, remainingRaces: raceCount });
-      alert(`✅ Kepala Mekanik ${mech.name} resmi dikontrak.`);
-      updateFinancialUI();
-      renderMechanicCards();
-    } else {
-      alert(`❌ Modal kas tidak cukup!`);
-    }
-  } else {
-    alert(`❌ ${mech.name} menolak tawaran!`);
-  }
-}
-
-function updateNegoCalc(type, id) {
-  const salaryVal = parseInt(document.getElementById(`slider-salary-${type}-${id}`).value);
-  const raceVal = parseInt(document.getElementById(`slider-races-${type}-${id}`).value);
-
-  document.getElementById(`val-salary-${type}-${id}`).innerText = `Rp ${(salaryVal / 1000000).toFixed(1)} Jt`;
-  document.getElementById(`val-races-${type}-${id}`).innerText = `${raceVal} Race`;
-  document.getElementById(`total-pay-${type}-${id}`).innerText = `Rp ${(salaryVal * raceVal).toLocaleString('id-ID')}`;
-}
-
-function renderMarketCards() {
-  const container = document.getElementById("market-cards-container");
-  if (!container || typeof CAR_PRESETS === "undefined") return;
-
-  container.innerHTML = CAR_PRESETS.map(car => `
-    <div class="card-item">
-      <div>
-        <div class="card-header">
-          <span class="card-title">${car.name}</span>
-          <span class="card-badge">Rp ${(car.price / 1000000).toFixed(0)} Juta</span>
-        </div>
-        <div class="card-stats">
-          <div class="stat-row"><span>Speed Dasar:</span><span>${car.baseSpeed} KM/H</span></div>
-          <div class="stat-row"><span>Handling:</span><span>${car.baseHandling} / 100</span></div>
-          <div class="stat-row"><span>Daya Tahan:</span><span>${car.baseDurability || 100} / 100</span></div>
-        </div>
-      </div>
-      <button class="btn-action" style="margin-top:10px;" ${gameData.myCars.length >= 2 ? 'disabled' : ''} onclick="buyCar('${car.id}')">
-        ${gameData.myCars.length >= 2 ? 'Slot Mobil Full (2/2)' : 'Beli Mobil Ini'}
-      </button>
-    </div>
-  `).join('');
-}
-
-function buyCar(carId) {
-  AudioEngine.playClick();
-  const car = CAR_PRESETS.find(c => c.id === carId);
-  if (gameData.cash >= car.price) {
-    gameData.cash -= car.price;
-    gameData.myCars.push({ 
-      ...car, 
-      instanceId: 'car_' + Date.now(), 
-      durabilityEngine: 100, 
-      durabilityBody: 100, 
-      durabilityTires: 100 
+        const tr = document.createElement('tr');
+        tr.className = `${bgClass} transition`;
+        tr.innerHTML = `
+            <td class="p-3 text-center font-bold ${rank <= 3 ? 'text-amber-400' : 'text-slate-400'}">${rank}</td>
+            <td class="p-3 font-bold ${t.isUser ? 'text-blue-300' : 'text-white'}">${t.name} ${t.isUser ? '(Anda)' : ''}</td>
+            <td class="p-3 text-center">${t.played}</td>
+            <td class="p-3 text-center font-bold text-emerald-400">${t.won}</td>
+            <td class="p-3 text-center font-bold text-rose-400">${t.lost}</td>
+            <td class="p-3 text-center font-mono text-slate-300">${t.setW} - ${t.setL}</td>
+            <td class="p-3 text-center font-extrabold text-amber-400">${t.points}</td>
+            <td class="p-3 text-center">${zoneBadge}</td>
+        `;
+        tbody.appendChild(tr);
     });
-    alert(`🎉 Berhasil membeli ${car.name}!`);
-    updateFinancialUI();
-    renderMarketCards();
-    renderGarageCards();
-    renderMyGarageCars();
-  } else {
-    alert("❌ Modal kas tidak cukup!");
-  }
 }
 
-function renderGarageCards() {
-  const container = document.getElementById("garage-cards-container");
-  if (!container) return;
+// MATCH SIMULATION ENGINE
+function renderMatchUI() {
+    const currentSchedule = gameState.schedules.find(s => s.week === gameState.currentWeek);
+    if (!currentSchedule) return;
 
-  let html = `
-    <div style="grid-column:1/-1; background:#161b22; padding:12px; border-radius:8px; border:1px solid #30363d; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h4 style="color:#f39c12; margin:0;">Level Bengkel Tim: Level ${gameData.workshopLevel} / 5</h4>
-        <span style="font-size:11px; color:#8b949e;">Mekanik Aktif: ${gameData.myMechanics.length} Orang</span>
-      </div>
-      <button class="btn-action" style="width:auto; padding:6px 15px;" onclick="upgradeWorkshop()">Upgrade Bengkel (Rp ${(gameData.workshopLevel * 75).toFixed(0)} Jt)</button>
-    </div>
-  `;
+    document.getElementById('match-schedule-title').innerText = `Pekan ke-${gameState.currentWeek} dari ${gameState.maxWeeks}`;
 
-  if (typeof MODS_CATALOG !== "undefined") {
-    const allMods = [...(MODS_CATALOG.engine||[]), ...(MODS_CATALOG.suspension||[]), ...(MODS_CATALOG.transmission||[])];
-    html += allMods.map(mod => `
-      <div class="card-item">
-        <div>
-          <div class="card-header"><span class="card-title">🔧 ${mod.name}</span><span class="card-badge">Rp ${(mod.cost / 1000000).toFixed(1)} Jt</span></div>
-          <div class="card-stats">
-            ${mod.speedBonus ? `<div class="stat-row"><span>Bonus Speed:</span><span>+${mod.speedBonus} KM/H</span></div>` : ''}
-            ${mod.handlingBonus ? `<div class="stat-row"><span>Bonus Handling:</span><span>+${mod.handlingBonus}</span></div>` : ''}
-          </div>
+    const userMatch = currentSchedule.matches.find(m => m.home.isUser || m.away.isUser);
+    if (userMatch) {
+        document.getElementById('match-home-name').innerText = userMatch.home.name;
+        document.getElementById('match-away-name').innerText = userMatch.away.name;
+
+        if (userMatch.played) {
+            document.getElementById('match-score-display').innerText = `${userMatch.homeSets} - ${userMatch.awaySets}`;
+            document.getElementById('match-sets-display').innerText = `SELESAI (Set)`;
+        } else {
+            document.getElementById('match-score-display').innerText = `0 - 0`;
+            document.getElementById('match-sets-display').innerText = `Belum Bertanding`;
+        }
+    }
+
+    const otherList = document.getElementById('other-matches-list');
+    otherList.innerHTML = '';
+
+    currentSchedule.matches.filter(m => !m.home.isUser && !m.away.isUser).forEach(m => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between text-xs';
+        card.innerHTML = `
+            <span class="font-bold text-slate-200 truncate w-2/5">${m.home.name}</span>
+            <span class="font-bold text-amber-400 font-mono">${m.played ? `${m.homeSets} - ${m.awaySets}` : 'VS'}</span>
+            <span class="font-bold text-slate-200 truncate w-2/5 text-right">${m.away.name}</span>
+        `;
+        otherList.appendChild(card);
+    });
+
+    const btnStart = document.getElementById('btn-start-match');
+    if (currentSchedule.matches[0].played) {
+        btnStart.innerHTML = `<i class="fa-solid fa-arrow-right mr-2"></i> Lanjut ke Pekan ${gameState.currentWeek + 1} ->`;
+    } else {
+        btnStart.innerHTML = `<i class="fa-solid fa-play mr-2"></i> Simulasi Semua Pertandingan`;
+    }
+}
+
+function handleMatchButtonClick() {
+    const currentSchedule = gameState.schedules.find(s => s.week === gameState.currentWeek);
+    if (currentSchedule && currentSchedule.matches[0].played) {
+        if (gameState.currentWeek < gameState.maxWeeks) {
+            gameState.currentWeek++;
+            
+            // Clear match commentary log for the new match week
+            const logEl = document.getElementById('match-commentary-log');
+            if (logEl) logEl.innerHTML = '<p class="text-slate-500 italic text-center py-10">Klik "Simulasi Semua Pertandingan" untuk memulai laga pekan ini.</p>';
+
+            updateHeaderUI();
+            renderMatchUI();
+        } else {
+            processEndOfWeekAndSeason();
+        }
+    } else {
+        startMatchSimulation();
+    }
+}
+
+function startMatchSimulation() {
+    const currentSchedule = gameState.schedules.find(s => s.week === gameState.currentWeek);
+    if (!currentSchedule || currentSchedule.matches[0].played) {
+        showAlert('Pekan Selesai', 'Pertandingan pekan ini sudah disimulasikan.');
+        return;
+    }
+
+    const userMatch = currentSchedule.matches.find(m => m.home.isUser || m.away.isUser);
+    const userIsHome = userMatch.home.isUser;
+    const logEl = document.getElementById('match-commentary-log');
+    logEl.innerHTML = '';
+
+    const btnStart = document.getElementById('btn-start-match');
+    btnStart.disabled = true;
+    btnStart.classList.add('opacity-50', 'cursor-not-allowed');
+
+    const btnSkip = document.getElementById('btn-skip-match');
+    if (btnSkip) btnSkip.classList.remove('hidden');
+
+    const startingPlayers = gameState.roster.filter(p => gameState.startingLineupIds.includes(p.id));
+    const getRandomUserPlayer = () => startingPlayers[Math.floor(Math.random() * startingPlayers.length)] || { name: "Pemain Utama", flag: "🇮🇩" };
+
+    const userLineupOvr = getAverageLineupOvr();
+    const opponentTeam = userIsHome ? userMatch.away : userMatch.home;
+    const opponentOvr = opponentTeam.avgOvr || 65;
+
+    activeMatchEvents = [];
+    let homeSets = 0;
+    let awaySets = 0;
+    let setIndex = 1;
+
+    const highlightActions = [
+        (p) => `🚀 <b>SERVE ACE!</b> Servis deras ${p.flag} <b>${p.name}</b> mematikan lawan!`,
+        (p) => `💥 <b>MONSTER SMASH!</b> Umpan manis disambar deras oleh ${p.flag} <b>${p.name}</b>!`,
+        (p) => `🧱 <b>MONSTER BLOCK!</b> Tembok kokoh ${p.flag} <b>${p.name}</b> mematikan spike lawan!`,
+        (p) => `🛡️ <b>SUPER DIG!</b> Penyelamatan spektakuler oleh ${p.flag} <b>${p.name}</b>!`,
+        (p) => `📐 <b>QUICK ATTACK!</b> Bola cepat diselesaikan dingin oleh ${p.flag} <b>${p.name}</b>!`
+    ];
+
+    while (homeSets < 3 && awaySets < 3) {
+        let homePoints = 0;
+        let awayPoints = 0;
+        const setTarget = (setIndex === 5) ? 15 : 25;
+
+        activeMatchEvents.push({ type: 'SET_START', setIndex, homeSets, awaySets });
+
+        while ((homePoints < setTarget && awayPoints < setTarget) || Math.abs(homePoints - awayPoints) < 2) {
+            const winProbability = userLineupOvr / (userLineupOvr + opponentOvr || 100);
+            const userPoint = Math.random() < (userIsHome ? winProbability : 1 - winProbability);
+
+            if (userPoint) {
+                if (userIsHome) homePoints++; else awayPoints++;
+            } else {
+                if (userIsHome) awayPoints++; else homePoints++;
+            }
+
+            if ((homePoints + awayPoints) % 2 === 0 || homePoints >= setTarget - 2 || awayPoints >= setTarget - 2) {
+                const player = getRandomUserPlayer();
+                const actionFn = highlightActions[Math.floor(Math.random() * highlightActions.length)];
+                const pointWinner = (userPoint && userIsHome) || (!userPoint && !userIsHome) ? (userIsHome ? gameState.teamName : opponentTeam.name) : (userIsHome ? opponentTeam.name : gameState.teamName);
+
+                activeMatchEvents.push({
+                    type: 'POINT_ACTION',
+                    homePoints, awayPoints, homeSets, awaySets,
+                    text: `${actionFn(player)} <span class="text-amber-400 font-bold">(Poin untuk ${pointWinner})</span>`
+                });
+            }
+        }
+
+        if (homePoints > awayPoints) homeSets++; else awaySets++;
+
+        activeMatchEvents.push({
+            type: 'SET_END', setIndex, homePoints, awayPoints, homeSets, awaySets,
+            winner: homePoints > awayPoints ? userMatch.home.name : userMatch.away.name
+        });
+
+        setIndex++;
+    }
+
+    userMatch.homeSets = homeSets;
+    userMatch.awaySets = awaySets;
+    userMatch.played = true;
+
+    currentEventIdx = 0;
+    if (matchSimTimer) clearInterval(matchSimTimer);
+
+    matchSimTimer = setInterval(() => {
+        if (currentEventIdx >= activeMatchEvents.length) {
+            finishMatchSimulationUI(userMatch);
+            return;
+        }
+        renderSingleMatchEvent(activeMatchEvents[currentEventIdx]);
+        currentEventIdx++;
+    }, 500);
+}
+
+function renderSingleMatchEvent(event) {
+    const logEl = document.getElementById('match-commentary-log');
+    if (!logEl) return;
+
+    if (event.type === 'SET_START') {
+        logEl.innerHTML += `
+            <div class="text-amber-400 font-bold border-t border-slate-800 pt-2 mt-2 flex justify-between items-center text-xs">
+                <span>🏐 SET KE-${event.setIndex} DIMULAI</span>
+                <span class="bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-[11px]">Set: ${event.homeSets} - ${event.awaySets}</span>
+            </div>
+        `;
+    } else if (event.type === 'POINT_ACTION') {
+        document.getElementById('match-score-display').innerText = `${event.homePoints} - ${event.awayPoints}`;
+        document.getElementById('match-sets-display').innerText = `Set: (${event.homeSets} - ${event.awaySets})`;
+        logEl.innerHTML += `<p class="text-slate-300 py-0.5 font-sans leading-relaxed text-[11px]">${event.text}</p>`;
+    } else if (event.type === 'SET_END') {
+        logEl.innerHTML += `
+            <p class="text-emerald-400 font-bold py-1 font-sans text-xs bg-emerald-950/40 px-2 rounded border border-emerald-500/20 my-1">
+                🏁 Set ke-${event.setIndex} Berakhir! Skor: ${event.homePoints} - ${event.awayPoints} (${event.winner} Memenangkan Set)
+            </p>
+        `;
+    }
+
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function skipMatchAnimation() {
+    if (matchSimTimer) clearInterval(matchSimTimer);
+    for (let i = currentEventIdx; i < activeMatchEvents.length; i++) {
+        renderSingleMatchEvent(activeMatchEvents[i]);
+    }
+    const currentSchedule = gameState.schedules.find(s => s.week === gameState.currentWeek);
+    const userMatch = currentSchedule.matches.find(m => m.home.isUser || m.away.isUser);
+    finishMatchSimulationUI(userMatch);
+}
+
+function finishMatchSimulationUI(userMatch) {
+    if (matchSimTimer) clearInterval(matchSimTimer);
+
+    document.getElementById('match-score-display').innerText = `${userMatch.homeSets} - ${userMatch.awaySets}`;
+    document.getElementById('match-sets-display').innerText = `SELESAI (Set)`;
+
+    const btnStart = document.getElementById('btn-start-match');
+    btnStart.disabled = false;
+    btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+
+    const btnSkip = document.getElementById('btn-skip-match');
+    if (btnSkip) btnSkip.classList.add('hidden');
+
+    const logEl = document.getElementById('match-commentary-log');
+    const matchWinner = userMatch.homeSets > userMatch.awaySets ? userMatch.home.name : userMatch.away.name;
+    const matchLoser = userMatch.homeSets > userMatch.awaySets ? userMatch.away.name : userMatch.home.name;
+
+    logEl.innerHTML += `
+        <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl mt-3 space-y-1 font-sans">
+            <p class="text-amber-300 font-bold text-xs">📝 RANGKUMAN LAGA PEKAN ${gameState.currentWeek}:</p>
+            <p class="text-slate-300 leading-relaxed text-xs">
+                Kemenangan untuk <b class="text-white">${matchWinner}</b> atas <b class="text-slate-400">${matchLoser}</b> dengan skor set <b class="text-amber-400">${userMatch.homeSets} - ${userMatch.awaySets}</b>!
+            </p>
         </div>
-        <button class="btn-action" style="margin-top:10px;" onclick="installModToCar('${mod.id}')">Pasang ke Mobil Tim</button>
-      </div>
-    `).join('');
-  }
+    `;
+    logEl.scrollTop = logEl.scrollHeight;
 
-  container.innerHTML = html;
+    const currentSchedule = gameState.schedules.find(s => s.week === gameState.currentWeek);
+    currentSchedule.matches.filter(m => !m.home.isUser && !m.away.isUser).forEach(m => {
+        const homeWins = Math.random() > 0.48;
+        if (homeWins) {
+            m.homeSets = 3;
+            m.awaySets = Math.floor(Math.random() * 3);
+        } else {
+            m.awaySets = 3;
+            m.homeSets = Math.floor(Math.random() * 3);
+        }
+        m.played = true;
+    });
+
+    const currentTierTeams = gameState.leagues[gameState.userLeagueTier] || [];
+    currentSchedule.matches.forEach(m => {
+        const homeTeam = currentTierTeams.find(t => t.id === m.home.id);
+        const awayTeam = currentTierTeams.find(t => t.id === m.away.id);
+
+        if (homeTeam && awayTeam) {
+            homeTeam.played++; awayTeam.played++;
+            homeTeam.setW += m.homeSets; homeTeam.setL += m.awaySets;
+            awayTeam.setW += m.awaySets; awayTeam.setL += m.homeSets;
+
+            if (m.homeSets > m.awaySets) {
+                homeTeam.won++; awayTeam.lost++;
+                homeTeam.points += 3;
+            } else {
+                awayTeam.won++; homeTeam.lost++;
+                awayTeam.points += 3;
+            }
+        }
+    });
+
+    // Process player stamina, salaries, and contract decay
+    gameState.roster.forEach(p => {
+        if (gameState.startingLineupIds.includes(p.id)) {
+            p.stamina = Math.max(20, p.stamina - Math.floor(Math.random() * 15 + 10));
+            p.contractMatches = Math.max(0, p.contractMatches - 1);
+            gameState.budget -= p.salary;
+        } else {
+            p.stamina = Math.min(100, p.stamina + 15);
+        }
+    });
+
+    gameState.roster.concat(gameState.marketPlayers).forEach(p => {
+        if (p.lockoutMatches > 0) p.lockoutMatches--;
+    });
+
+    processCpuTransfers();
+    updateHeaderUI();
+    renderMatchUI();
+    renderStandingsUI();
+    renderSquadUI();
+    renderTransferMarket();
+    renderInboxUI();
 }
 
-function installModToCar(modId) {
-  AudioEngine.playClick();
-  if (gameData.myCars.length === 0) {
-    alert("Belum ada mobil di garasi!");
-    return;
-  }
-  const allMods = [...(MODS_CATALOG.engine||[]), ...(MODS_CATALOG.suspension||[]), ...(MODS_CATALOG.transmission||[])];
-  const mod = allMods.find(m => m.id === modId);
+function processEndOfWeekAndSeason() {
+    const currentTierTeams = gameState.leagues[gameState.userLeagueTier];
+    const sorted = [...currentTierTeams].sort((a, b) => b.points - a.points || (b.setW - b.setL) - (a.setW - a.setL));
+    const userRank = sorted.findIndex(t => t.isUser) + 1;
 
-  if (gameData.cash >= mod.cost) {
-    gameData.cash -= mod.cost;
-    let targetCar = gameData.myCars[0];
-    if (mod.speedBonus) targetCar.baseSpeed += mod.speedBonus;
-    if (mod.handlingBonus) targetCar.baseHandling += mod.handlingBonus;
-    
-    alert(`✅ Modifikasi ${mod.name} berhasil dipasang! Base speed menjadi ${targetCar.baseSpeed} KM/H.`);
-    updateFinancialUI();
-    renderMyGarageCars();
-  } else {
-    alert("❌ Modal kas tidak cukup!");
-  }
+    let reportMessage = `Musim kompetisi berakhir! Tim Anda (${gameState.teamName}) finis di peringkat #${userRank} pada ${LEAGUE_TIERS[gameState.userLeagueTier].name}.\n\n`;
+
+    if (userRank <= 2 && gameState.userLeagueTier > 1) {
+        gameState.userLeagueTier--;
+        reportMessage += `🎉 **PROMOSI OTOMATIS!** Tim Anda naik kasta ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**!`;
+    } else if (userRank === 3 && gameState.userLeagueTier > 1) {
+        const playoffWin = Math.random() > 0.45;
+        if (playoffWin) {
+            gameState.userLeagueTier--;
+            reportMessage += `⚔️ **MENANG PLAYOFF:** Tim Anda **PROMOSI NAIK KASTA** ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**!`;
+        } else {
+            reportMessage += `⚔️ **KALAH PLAYOFF:** Tim Anda **BERTAHAN** di **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
+        }
+    } else if (userRank >= 14 && gameState.userLeagueTier < 5) {
+        gameState.userLeagueTier++;
+        reportMessage += `⚠️ **DEGRADASI!** Tim Anda terlempar ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
+    } else {
+        reportMessage += `👍 Tim Anda bertahan di **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
+    }
+
+    showAlert('Akhir Musim Kompetisi!', reportMessage, 'fa-trophy');
+
+    gameState.currentWeek = 1;
+    for (let t = 1; t <= 5; t++) {
+        if (gameState.leagues[t]) {
+            gameState.leagues[t].forEach(team => {
+                team.played = 0; team.won = 0; team.lost = 0; team.setW = 0; team.setL = 0; team.points = 0;
+            });
+        }
+    }
+
+    generateLeagueSchedules();
+    updateHeaderUI();
+    renderMatchUI();
+    renderStandingsUI();
 }
 
-function upgradeWorkshop() {
-  AudioEngine.playClick();
-  if (gameData.workshopLevel >= 5) return;
-  let upgradeCost = gameData.workshopLevel * 75000000;
-  if (gameData.cash >= upgradeCost) {
-    gameData.cash -= upgradeCost;
-    gameData.workshopLevel++;
-    alert(`🎉 Bengkel berhasil di-upgrade ke Level ${gameData.workshopLevel}!`);
-    updateFinancialUI();
-    renderGarageCards();
-  } else {
-    alert(`Modal tidak mencukupi!`);
-  }
+function processCpuTransfers() {
+    if (Math.random() < 0.45 && gameState.marketPlayers.length > 0) {
+        const available = gameState.marketPlayers.filter(p => !p.clubName);
+        if (available.length > 0) {
+            const playerToBuy = available[Math.floor(Math.random() * available.length)];
+            const buyingTeam = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
+            
+            playerToBuy.clubName = buyingTeam;
+            addTransferNews(
+                'BURSA LIGA',
+                `Klub <b>${buyingTeam}</b> merekrut <b>${playerToBuy.flag} ${playerToBuy.name}</b> (${playerToBuy.position}) senilai ${formatRupiah(playerToBuy.value)}.`
+            );
+        }
+    }
 }
 
-// --- SWITCH TAB NAVIGATION ---
-function switchTab(tabId) {
-  AudioEngine.playClick();
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  
-  if (window.event && window.event.target) window.event.target.classList.add('active');
-  const target = document.getElementById(tabId);
-  if (target) target.classList.add('active');
+// TRANSFER MARKET & NEWS
+function renderTransferMarket() {
+    const container = document.getElementById('market-players-grid');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const filterPos = document.getElementById('market-filter-pos').value;
+    const filtered = gameState.marketPlayers.filter(p => filterPos === 'ALL' || p.position === filterPos);
+
+    filtered.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between space-y-3 hover:border-slate-700 transition';
+        card.innerHTML = `
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${TIERS[p.tier].color}">${p.tier}</span>
+                    <span class="text-xs font-bold text-amber-400">OVR ${p.ovr}</span>
+                </div>
+                <h4 class="font-bold text-white text-sm">${p.flag} ${p.name}</h4>
+                <p class="text-xs text-slate-400 mt-0.5">${p.position} • ${p.country}</p>
+                <p class="text-[11px] text-slate-500 mt-1">${p.clubName ? `Klub: ${p.clubName}` : 'Status: Free Agent'}</p>
+            </div>
+
+            <div class="bg-slate-950 p-2.5 rounded-xl space-y-1 text-xs">
+                <div class="flex justify-between"><span class="text-slate-400">Gaji Ekspektasi:</span><b class="text-emerald-400">${formatRupiah(p.salary)}/m</b></div>
+                <div class="flex justify-between"><span class="text-slate-400">Nilai Transfer:</span><b class="text-amber-300">${formatRupiah(p.value)}</b></div>
+            </div>
+
+            ${p.lockoutMatches > 0 ? 
+                `<button disabled class="w-full py-2 bg-slate-800 border border-rose-500/30 text-rose-400 font-bold rounded-xl text-xs cursor-not-allowed">
+                    🔒 Menolak Bicara (${p.lockoutMatches} Match)
+                </button>` :
+                `<button onclick="startPlayerNegotiation('${p.id}', false)" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition">
+                    <i class="fa-solid fa-handshake mr-1"></i> Rekrut / Nego
+                </button>`
+            }
+        `;
+        container.appendChild(card);
+    });
+}
+
+function addTransferNews(type, newsText) {
+    gameState.transferNews.unshift({
+        id: 'news_' + Math.random().toString(36).substr(2, 9),
+        type,
+        text: newsText,
+        time: `Pekan ${gameState.currentWeek}`
+    });
+    renderNewsUI();
+}
+
+function renderNewsUI() {
+    const container = document.getElementById('transfer-news-feed');
+    if (!container) return;
+    container.innerHTML = '';
+
+    gameState.transferNews.forEach(n => {
+        const item = document.createElement('div');
+        item.className = 'bg-slate-900 border border-slate-800 p-3.5 rounded-xl space-y-1 text-xs';
+        item.innerHTML = `
+            <div class="flex justify-between items-center text-[10px]">
+                <span class="font-bold text-blue-400 uppercase">[${n.type}]</span>
+                <span class="text-slate-500">${n.time}</span>
+            </div>
+            <p class="text-slate-200 leading-relaxed">${n.text}</p>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// INBOX RENDER
+function renderInboxUI() {
+    const container = document.getElementById('inbox-messages-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    gameState.inboxMessages.forEach(m => {
+        const card = document.createElement('div');
+        card.className = `p-4 rounded-2xl border ${m.handled ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-800 border-blue-500/40'} space-y-2 text-xs transition`;
+        
+        card.innerHTML = `
+            <div class="flex justify-between items-center text-[10px]">
+                <span class="font-bold uppercase ${m.handled ? 'text-slate-500' : 'text-amber-400'}">${m.type}</span>
+                <span class="text-slate-500">Pekan ${m.time}</span>
+            </div>
+            <p class="text-slate-200">${m.message}</p>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// NEGOTIATION SYSTEM WITH CLUB & PLAYER
+function startPlayerNegotiation(playerId, isRenewal = false) {
+    let p = gameState.roster.find(x => x.id === playerId);
+    if (!p) p = gameState.marketPlayers.find(x => x.id === playerId);
+    if (!p) return;
+
+    if (p.lockoutMatches > 0) {
+        showAlert('Negosiasi Ditolak', `Pemain/klub menolak bernegosiasi selama ${p.lockoutMatches} pertandingan lagi.`);
+        return;
+    }
+
+    if (!isRenewal && p.country !== 'Indonesia' && countForeignPlayers(gameState.roster) >= 2) {
+        showAlert('Kuota Asing Penuh', 'Klub Anda sudah memiliki 2 pemain asing!');
+        return;
+    }
+
+    const hasClub = !isRenewal && p.clubName;
+
+    currentNego = {
+        player: p,
+        isRenewal,
+        hasClub,
+        step: hasClub ? 'club_fee' : 'salary',
+        targetFee: p.value,
+        offerFee: p.value,
+        targetSalary: p.salary,
+        offerSalary: p.salary,
+        offerMatches: 14,
+        patience: 3
+    };
+
+    const chatBox = document.getElementById('nego-chat-messages');
+    chatBox.innerHTML = '';
+
+    const controlsFee = document.getElementById('nego-controls-fee');
+    const controlsSalary = document.getElementById('nego-controls-salary');
+    const controlsMatches = document.getElementById('nego-controls-matches');
+
+    if (hasClub) {
+        document.getElementById('nego-target-name').innerText = p.clubName;
+        document.getElementById('nego-target-subtitle').innerText = `Negosiasi Transfer: ${p.name}`;
+        document.getElementById('nego-avatar').innerText = '💼';
+
+        addChatMessage(p.clubName, `Halo Manager ${gameState.managerName}. Kami bersedia melepas ${p.name} jika tawaran biaya transfer Anda cocok. (Nilai Pasar: ${formatRupiah(p.value)})`, 'them');
+
+        controlsFee.classList.remove('hidden');
+        controlsSalary.classList.add('hidden');
+        controlsMatches.classList.add('hidden');
+
+        const sliderFee = document.getElementById('slider-offer-fee');
+        sliderFee.min = Math.round(p.value * 0.4);
+        sliderFee.max = Math.round(p.value * 2.5);
+        sliderFee.step = 50000;
+        sliderFee.value = p.value;
+
+        syncOfferDisplay('fee');
+    } else {
+        document.getElementById('nego-target-name').innerText = p.name;
+        document.getElementById('nego-target-subtitle').innerText = `${p.position} • ${p.tier}`;
+        document.getElementById('nego-avatar').innerText = '😀';
+
+        addChatMessage(p.name, `Halo Manager ${gameState.managerName}. Saya siap mendengarkan penawaran kontrak untuk tim Anda. (Ekspektasi: ${formatRupiah(p.salary)}/match)`, 'them');
+
+        controlsFee.classList.add('hidden');
+        controlsSalary.classList.remove('hidden');
+        controlsMatches.classList.remove('hidden');
+
+        const sliderSalary = document.getElementById('slider-offer-salary');
+        sliderSalary.min = Math.round(p.salary * 0.4);
+        sliderSalary.max = Math.round(p.salary * 2.5);
+        sliderSalary.step = 500;
+        sliderSalary.value = p.salary;
+
+        syncOfferDisplay('salary');
+        syncOfferDisplay('matches');
+    }
+
+    document.getElementById('modal-negotiation-chat').classList.remove('hidden');
+}
+
+function addChatMessage(sender, text, side) {
+    const chatBox = document.getElementById('nego-chat-messages');
+    if (!chatBox) return;
+
+    const bubble = document.createElement('div');
+    bubble.className = `flex flex-col ${side === 'me' ? 'items-end' : 'items-start'} my-1.5`;
+    bubble.innerHTML = `
+        <span class="text-[10px] text-slate-500 mb-0.5">${sender}</span>
+        <div class="${side === 'me' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-200 border border-slate-700'} px-3.5 py-2 rounded-2xl max-w-[85%] leading-relaxed">
+            ${text}
+        </div>
+    `;
+    chatBox.appendChild(bubble);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function adjustOffer(type, amount) {
+    const slider = document.getElementById(`slider-offer-${type}`);
+    if (slider) {
+        slider.value = parseInt(slider.value) + amount;
+        syncOfferDisplay(type);
+    }
+}
+
+function syncOfferDisplay(type) {
+    const slider = document.getElementById(`slider-offer-${type}`);
+    const display = document.getElementById(`display-offer-${type}`);
+    if (!slider || !display || !currentNego) return;
+
+    const val = parseInt(slider.value);
+    if (type === 'fee') {
+        currentNego.offerFee = val;
+        display.innerText = formatRupiah(val);
+    } else if (type === 'salary') {
+        currentNego.offerSalary = val;
+        display.innerText = `${formatRupiah(val)} / match`;
+    } else if (type === 'matches') {
+        currentNego.offerMatches = val;
+        display.innerText = `${val} Match`;
+    }
+}
+
+function submitNegotiationOffer() {
+    if (!currentNego) return;
+    const p = currentNego.player;
+
+    if (currentNego.step === 'club_fee') {
+        const offerFee = currentNego.offerFee;
+        addChatMessage('Anda', `Kami menawarkan biaya transfer sebesar ${formatRupiah(offerFee)} untuk kepindahan ${p.name}.`, 'me');
+
+        const minFee = Math.round(p.value * 0.92);
+
+        if (offerFee >= minFee) {
+            if (gameState.budget < offerFee) {
+                showAlert('Kas Tidak Cukup', `Kas tim Anda (${formatRupiah(gameState.budget)}) tidak cukup untuk membayar biaya transfer ${formatRupiah(offerFee)}!`);
+                return;
+            }
+
+            document.getElementById('nego-avatar').innerText = '🤝';
+            addChatMessage(p.clubName, `Sepakat! Kami menyetujui biaya transfer ${formatRupiah(offerFee)}. Sekarang Anda dapat bernegosiasi gaji langsung dengan ${p.name}.`, 'them');
+
+            gameState.budget -= offerFee;
+            updateHeaderUI();
+
+            setTimeout(() => {
+                currentNego.step = 'salary';
+                currentNego.patience = 3;
+
+                document.getElementById('nego-target-name').innerText = p.name;
+                document.getElementById('nego-target-subtitle').innerText = `${p.position} • ${p.tier}`;
+                document.getElementById('nego-avatar').innerText = '😀';
+
+                document.getElementById('nego-controls-fee').classList.add('hidden');
+                document.getElementById('nego-controls-salary').classList.remove('hidden');
+                document.getElementById('nego-controls-matches').classList.remove('hidden');
+
+                addChatMessage(p.name, `Klub sudah sepakat! Sekarang giliran kita membahas gaji saya. Ekspektasi saya adalah ${formatRupiah(p.salary)}/match.`, 'them');
+
+                const sliderSalary = document.getElementById('slider-offer-salary');
+                sliderSalary.min = Math.round(p.salary * 0.4);
+                sliderSalary.max = Math.round(p.salary * 2.5);
+                sliderSalary.step = 500;
+                sliderSalary.value = p.salary;
+
+                syncOfferDisplay('salary');
+                syncOfferDisplay('matches');
+            }, 1200);
+        } else {
+            currentNego.patience--;
+            if (currentNego.patience <= 0) {
+                document.getElementById('nego-avatar').innerText = '🤬';
+                addChatMessage(p.clubName, `Penawaran Anda tidak masuk akal! Transaksi ini resmi KAMI BATALKAN!`, 'them');
+                p.lockoutMatches = 5;
+
+                setTimeout(() => {
+                    closeModal('modal-negotiation-chat');
+                    currentNego = null;
+                    showAlert('Transaksi Gagal!', `Klub ${p.clubName} menolak melepas ${p.name} karena tawaran biaya transfer terlalu murah! Transaksi dibatalkan.`, 'fa-circle-xmark');
+                    renderTransferMarket();
+                }, 1400);
+            } else {
+                document.getElementById('nego-avatar').innerText = '😠';
+                addChatMessage(p.clubName, `Tawaran ${formatRupiah(offerFee)} terlalu jauh di bawah nilai pasar (${formatRupiah(p.value)}). Naikkan penawaran Anda!`, 'them');
+            }
+        }
+        return;
+    }
+
+    const offerSal = currentNego.offerSalary;
+    addChatMessage('Anda', `Saya menawarkan gaji ${formatRupiah(offerSal)} per pertandingan selama ${currentNego.offerMatches} pertandingan.`, 'me');
+
+    const minAcceptable = Math.round(p.salary * 0.94);
+
+    if (offerSal >= minAcceptable) {
+        document.getElementById('nego-avatar').innerText = '😀';
+        addChatMessage(p.name, `Penawaran luar biasa! Saya setuju dengan kesepakatan ini. Sampai jumpa di lapangan!`, 'them');
+
+        setTimeout(() => {
+            finalizeNegotiation(true);
+            showAlert('Berhasil Bergabung!', `Pemain ${p.name} resmi bergabung dengan tim Anda!`, 'fa-circle-check');
+        }, 1200);
+    } else {
+        currentNego.patience--;
+        if (currentNego.patience <= 0) {
+            document.getElementById('nego-avatar').innerText = '🤬';
+            addChatMessage(p.name, `Penawaran Anda sangat rendah dan merendahkan! Saya batalkan negosiasi ini!`, 'them');
+            p.lockoutMatches = 5;
+
+            setTimeout(() => {
+                finalizeNegotiation(false);
+                showAlert('Negosiasi Gagal', `${p.name} merasa tersinggung dengan tawaran Anda dan menolak berbicara selama 5 pertandingan.`, 'fa-circle-xmark');
+            }, 1400);
+        } else if (offerSal < p.salary * 0.8) {
+            document.getElementById('nego-avatar').innerText = '😡';
+            addChatMessage(p.name, `Tawaran ini jauh sekali di bawah ekspektasi saya (${formatRupiah(p.salary)}). Naikkan lagi penawaran Anda!`, 'them');
+        } else {
+            document.getElementById('nego-avatar').innerText = '😒';
+            addChatMessage(p.name, `Saya hanya bisa memberi potongan tipis. Angka ${formatRupiah(offerSal)} ini masih belum cukup.`, 'them');
+        }
+    }
+}
+
+function finalizeNegotiation(success) {
+    if (!currentNego) return;
+    const p = currentNego.player;
+
+    if (success) {
+        p.salary = currentNego.offerSalary;
+        p.contractMatches = currentNego.offerMatches;
+
+        if (!currentNego.isRenewal) {
+            p.clubName = gameState.teamName;
+            gameState.roster.push(p);
+            gameState.marketPlayers = gameState.marketPlayers.filter(x => x.id !== p.id);
+
+            addTransferNews('REKRUTAN BARU', `Klub <b>${gameState.teamName}</b> resmi mendatangkan <b>${p.flag} ${p.name}</b> (${p.position}) dengan gaji ${formatRupiah(p.salary)}/match.`);
+        }
+    }
+
+    closeModal('modal-negotiation-chat');
+    currentNego = null;
+
+    updateHeaderUI();
+    renderSquadUI();
+    renderTransferMarket();
+}
+
+function openPlayerModal(playerId) {
+    const p = gameState.roster.find(x => x.id === playerId);
+    if (!p) return;
+
+    const content = document.getElementById('modal-player-content');
+    if (!content) return;
+
+    content.innerHTML = `
+        <div class="text-center mb-4">
+            <span class="px-2.5 py-1 rounded text-xs font-bold border ${TIERS[p.tier].color}">${p.tier}</span>
+            <h3 class="text-xl font-extrabold text-white mt-2">${p.flag} ${p.name}</h3>
+            <p class="text-xs text-slate-400">${p.position} • ${p.country}</p>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-700/80 p-4 rounded-2xl space-y-3 text-xs mb-4">
+            <div class="flex justify-between border-b border-slate-800 pb-2">
+                <span class="text-slate-400">OVR Efektif:</span>
+                <b class="text-amber-400 font-bold">${getEffectiveOvr(p)} (OVR Asli: ${p.ovr})</b>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 pb-2">
+                <span class="text-slate-400">Gaji Saat Ini:</span>
+                <b class="text-emerald-400">${formatRupiah(p.salary)} / Match</b>
+            </div>
+            <div class="flex justify-between border-b border-slate-800 pb-2">
+                <span class="text-slate-400">Sisa Kontrak:</span>
+                <b class="text-slate-200">${p.contractMatches} Match</b>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-400">Kondisi Stamina:</span>
+                <b class="text-emerald-400">${p.stamina}%</b>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs mb-6">
+            <div class="bg-slate-900 p-2 rounded-xl text-center"><span class="text-slate-500 block text-[10px]">Spike</span><b class="text-slate-200">${p.skills.spike}</b></div>
+            <div class="bg-slate-900 p-2 rounded-xl text-center"><span class="text-slate-500 block text-[10px]">Block</span><b class="text-slate-200">${p.skills.block}</b></div>
+            <div class="bg-slate-900 p-2 rounded-xl text-center"><span class="text-slate-500 block text-[10px]">Serve</span><b class="text-slate-200">${p.skills.serve}</b></div>
+            <div class="bg-slate-900 p-2 rounded-xl text-center"><span class="text-slate-500 block text-[10px]">Receive</span><b class="text-slate-200">${p.skills.receive}</b></div>
+        </div>
+
+        <div class="space-y-2">
+            <button onclick="closeModal('modal-player-detail'); startPlayerNegotiation('${p.id}', true)" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition">
+                Perbarui Kontrak
+            </button>
+        </div>
+    `;
+
+    document.getElementById('modal-player-detail').classList.remove('hidden');
 }
