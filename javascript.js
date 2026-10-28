@@ -1,7 +1,7 @@
 let gameState = {
     teamName: '',
     managerName: '',
-    budget: 500000,
+    budget: 500000, // Budget awal disesuaikan ke Rp 500.000
     currentWeek: 1,
     maxWeeks: 14,
     userLeagueTier: 5,
@@ -375,19 +375,31 @@ function renderSponsorsUI() {
 
         const active = gameState.sponsors.active[type];
         if (active) {
+            const isFinished = active.completed;
             cardEl.innerHTML = `
                 <div class="flex justify-between items-center">
                     <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">${type} SPONSOR</span>
-                    <span class="text-xs font-bold text-emerald-400">AKTIF</span>
+                    <span class="text-xs font-bold ${isFinished ? 'text-cyan-400' : 'text-emerald-400'}">
+                        ${isFinished ? 'SELESAI ✅' : 'AKTIF'}
+                    </span>
                 </div>
                 <div>
                     <h4 class="font-bold text-white text-base">${active.name}</h4>
-                    <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> ${active.goal}</p>
+                    <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> Target: ${active.goal}</p>
+                    ${active.isInstallment ? 
+                        `<p class="text-[11px] text-cyan-300 mt-1"><i class="fa-solid fa-coins mr-1"></i> Angsuran: ${formatRupiah(active.perWinFee)} / match menang (${active.paidWins}/${active.targetVal})</p>` : 
+                        `<p class="text-[11px] text-emerald-300 mt-1"><i class="fa-solid fa-vault mr-1"></i> Dana Awal Diterima: ${formatRupiah(active.receivedTotal)}</p>`
+                    }
                 </div>
                 <div class="bg-slate-950 p-3 rounded-xl flex justify-between items-center text-xs">
-                    <span class="text-slate-400">Bonus Musim:</span>
-                    <b class="text-emerald-400 font-mono">${formatRupiah(active.fee)}</b>
+                    <span class="text-slate-400">Total Cair:</span>
+                    <b class="text-emerald-400 font-mono">${formatRupiah(active.receivedTotal)}</b>
                 </div>
+                ${!isFinished ? `
+                    <button onclick="terminateSponsorContract('${type}')" class="w-full py-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 font-bold rounded-xl text-xs transition">
+                        <i class="fa-solid fa-ban mr-1"></i> Putus Kontrak (Penalti 85%)
+                    </button>
+                ` : '<div class="text-[10px] text-center text-cyan-400 font-bold py-1">Objektif Terpenuhi + Bonus 15%</div>'}
             `;
         } else {
             const options = gameState.sponsors.available[type] || [];
@@ -398,6 +410,7 @@ function renderSponsorsUI() {
                         <span class="text-emerald-400 font-mono text-xs font-bold">${formatRupiah(s.fee)}</span>
                     </div>
                     <p class="text-[11px] text-slate-400"><i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> ${s.goal}</p>
+                    <p class="text-[10px] text-slate-500">${s.isInstallment ? 'Sistem: Angsuran per Kemenangan Match' : 'Sistem: Diterima Penuh di Awal'}</p>
                     <button onclick="signSponsorContract('${type}', '${s.id}')" class="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-[11px] transition">
                         Tanda Tangan Kontrak
                     </button>
@@ -421,11 +434,45 @@ function signSponsorContract(type, sponsorId) {
     const selected = gameState.sponsors.available[type].find(s => s.id === sponsorId);
     if (selected) {
         gameState.sponsors.active[type] = selected;
-        gameState.budget += selected.fee;
+
+        // Jika bukan sistem angsuran, dana awal langsung masuk ke Kas
+        if (!selected.isInstallment) {
+            gameState.budget += selected.fee;
+            showAlert('Sponsor Ditandatangani!', `Klub Anda menerima dana sponsor awal sebesar ${formatRupiah(selected.fee)} dari ${selected.name}.`, 'fa-handshake');
+        } else {
+            showAlert('Sponsor Ditandatangani!', `Sponsor ${selected.name} akan mencairkan ${formatRupiah(selected.perWinFee)} setiap kali tim Anda memenangkan pertandingan!`, 'fa-handshake');
+        }
+
         updateHeaderUI();
         renderSponsorsUI();
-        showAlert('Sponsor Ditandatangani!', `Klub Anda menerima dana sponsorship sebesar ${formatRupiah(selected.fee)} dari ${selected.name}.`, 'fa-handshake');
     }
+}
+
+// Fitur Putus / Batal Kontrak (Pengembalian 70% + Penalti Denda 15% = Total 85%)
+function terminateSponsorContract(type) {
+    const active = gameState.sponsors.active[type];
+    if (!active) return;
+
+    const refundAmount = Math.round(active.receivedTotal * 0.70);
+    const penaltyAmount = Math.round(active.fee * 0.15);
+    const totalDeduction = refundAmount + penaltyAmount;
+
+    if (gameState.budget < totalDeduction) {
+        showAlert('Kas Tidak Cukup', `Kas klub Anda (${formatRupiah(gameState.budget)}) tidak cukup untuk membayar penalti pembatalan sebesar ${formatRupiah(totalDeduction)}!`);
+        return;
+    }
+
+    gameState.budget -= totalDeduction;
+    gameState.sponsors.active[type] = null;
+
+    showAlert(
+        'Kontrak Dibatalkan', 
+        `Kontrak dengan ${active.name} resmi diputus.\n\nKas dipotong sebesar ${formatRupiah(totalDeduction)} (Pengembalian 70%: ${formatRupiah(refundAmount)} + Penalti Denda 15%: ${formatRupiah(penaltyAmount)}).`,
+        'fa-ban'
+    );
+
+    updateHeaderUI();
+    renderSponsorsUI();
 }
 
 // STANDINGS RENDER
@@ -747,6 +794,47 @@ function finishMatchSimulationUI(userMatch) {
         if (p.lockoutMatches > 0) p.lockoutMatches--;
     });
 
+    // ------------------- SPONSOR PAYMENT & BONUS CHECK -------------------
+    const userWon = (userMatch.home.isUser && userMatch.homeSets > userMatch.awaySets) || 
+                    (userMatch.away.isUser && userMatch.awaySets > userMatch.homeSets);
+
+    if (userWon) {
+        const userTeamData = currentTierTeams.find(t => t.isUser);
+
+        ['primary', 'secondary', 'extra'].forEach(type => {
+            const active = gameState.sponsors.active[type];
+            if (active && !active.completed) {
+                
+                // Jika sponsor tipe angsuran per kemenangan match
+                if (active.isInstallment && active.paidWins < active.targetVal) {
+                    active.paidWins++;
+                    active.receivedTotal += active.perWinFee;
+                    gameState.budget += active.perWinFee;
+
+                    addTransferNews(
+                        'ANGSURAN SPONSOR',
+                        `Sponsor <b>${active.name}</b> mencairkan angsuran kemenangan ke-${active.paidWins} sebesar <b>${formatRupiah(active.perWinFee)}</b> ke kas klub!`
+                    );
+                }
+
+                // Cek pencapaian objektif & bonus 15%
+                if (active.evaluator(0, userTeamData.won, userTeamData.setW)) {
+                    active.completed = true;
+                    if (!active.bonusPaid) {
+                        const bonusFee = Math.round(active.fee * 0.15);
+                        active.bonusPaid = true;
+                        gameState.budget += bonusFee;
+
+                        addTransferNews(
+                            'BONUS SPONSOR',
+                            `🎉 Target sponsor <b>${active.name}</b> TERPENUHI! Bonus keberhasilan 15% sebesar <b>${formatRupiah(bonusFee)}</b> dicairkan ke kas klub!`
+                        );
+                    }
+                }
+            }
+        });
+    }
+
     processCpuTransfers();
     updateHeaderUI();
     renderMatchUI();
@@ -760,30 +848,73 @@ function processEndOfWeekAndSeason() {
     const currentTierTeams = gameState.leagues[gameState.userLeagueTier];
     const sorted = [...currentTierTeams].sort((a, b) => b.points - a.points || (b.setW - b.setL) - (a.setW - a.setL));
     const userRank = sorted.findIndex(t => t.isUser) + 1;
+    const userTeamData = sorted.find(t => t.isUser);
 
     let reportMessage = `Musim kompetisi berakhir! Tim Anda (${gameState.teamName}) finis di peringkat #${userRank} pada ${LEAGUE_TIERS[gameState.userLeagueTier].name}.\n\n`;
 
+    // ------------------- EVALUASI SPONSOR & PENALTI AKHIR MUSIM -------------------
+    let totalPenaltyDeducted = 0;
+    
+    ['primary', 'secondary', 'extra'].forEach(type => {
+        const active = gameState.sponsors.active[type];
+        if (active) {
+            const isSuccess = active.evaluator(userRank, userTeamData.won, userTeamData.setW);
+
+            if (isSuccess) {
+                if (!active.completed) {
+                    active.completed = true;
+                    if (!active.bonusPaid) {
+                        const bonusFee = Math.round(active.fee * 0.15);
+                        active.bonusPaid = true;
+                        gameState.budget += bonusFee;
+                        reportMessage += `✅ **${active.name}**: Target Tercapai! Bonus 15% (${formatRupiah(bonusFee)}) dicairkan.\n`;
+                    }
+                }
+            } else {
+                // PENALTI AKHIR MUSIM: Potongan acak 45% hingga 70% dari nilai total sponsor
+                const penaltyPercent = (Math.floor(Math.random() * 26) + 45) / 100;
+                const penaltyFee = Math.round(active.fee * penaltyPercent);
+                
+                gameState.budget -= penaltyFee;
+                totalPenaltyDeducted += penaltyFee;
+
+                reportMessage += `❌ **${active.name}**: Target Gagal! Penalti (${Math.round(penaltyPercent * 100)}%): Kas dipotong ${formatRupiah(penaltyFee)}.\n`;
+            }
+        }
+    });
+
+    if (totalPenaltyDeducted > 0) {
+        reportMessage += `\n⚠️ Total Penalti Sponsor Musim Ini: **${formatRupiah(totalPenaltyDeducted)}**\n\n`;
+    }
+
+    // Status Promosi / Degradasi Liga
     if (userRank <= 2 && gameState.userLeagueTier > 1) {
         gameState.userLeagueTier--;
-        reportMessage += `🎉 **PROMOSI OTOMATIS!** Tim Anda naik kasta ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**!`;
+        reportMessage += `🎉 **PROMOSI OTOMATIS!** Naik kasta ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**!`;
     } else if (userRank === 3 && gameState.userLeagueTier > 1) {
         const playoffWin = Math.random() > 0.45;
         if (playoffWin) {
             gameState.userLeagueTier--;
-            reportMessage += `⚔️ **MENANG PLAYOFF:** Tim Anda **PROMOSI NAIK KASTA** ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**!`;
+            reportMessage += `⚔️ **MENANG PLAYOFF:** **PROMOSI NAIK KASTA** ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**!`;
         } else {
-            reportMessage += `⚔️ **KALAH PLAYOFF:** Tim Anda **BERTAHAN** di **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
+            reportMessage += `⚔️ **KALAH PLAYOFF:** Bertahan di **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
         }
     } else if (userRank >= 14 && gameState.userLeagueTier < 5) {
         gameState.userLeagueTier++;
-        reportMessage += `⚠️ **DEGRADASI!** Tim Anda terlempar ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
+        reportMessage += `⚠️ **DEGRADASI!** Terlempar ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
     } else {
-        reportMessage += `👍 Tim Anda bertahan di **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
+        reportMessage += `👍 Bertahan di **${LEAGUE_TIERS[gameState.userLeagueTier].name}**.`;
     }
 
-    showAlert('Akhir Musim Kompetisi!', reportMessage, 'fa-trophy');
+    showAlert('Rangkuman Finansial & Akhir Musim!', reportMessage, 'fa-trophy');
 
+    // Reset Musim Baru
     gameState.currentWeek = 1;
+    gameState.sponsors = {
+        available: generateSponsorOptions(5),
+        active: { primary: null, secondary: null, extra: null }
+    };
+
     for (let t = 1; t <= 5; t++) {
         if (gameState.leagues[t]) {
             gameState.leagues[t].forEach(team => {
@@ -796,6 +927,7 @@ function processEndOfWeekAndSeason() {
     updateHeaderUI();
     renderMatchUI();
     renderStandingsUI();
+    renderSponsorsUI();
 }
 
 function processCpuTransfers() {
