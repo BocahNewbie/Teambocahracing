@@ -62,6 +62,7 @@ function generateRandomSponsor(type) {
   if (type === 'extra') fee = 400000 + Math.floor(Math.random() * 200000);
 
   return {
+    id: `sp_${type}_${Math.random().toString(36).substr(2, 6)}`,
     type: type,
     name: brand,
     fee: fee,
@@ -71,10 +72,25 @@ function generateRandomSponsor(type) {
   };
 }
 
-function generateAllSponsors() {
-  return {
-    primary: generateRandomSponsor('primary'),
-    secondary: generateRandomSponsor('secondary'),
-    extra: generateRandomSponsor('extra')
+// Menghasilkan 5 pilihan sponsor untuk masing-masing tipe
+function generateSponsorOptions(countPerType = 5) {
+  const options = {
+    primary: [],
+    secondary: [],
+    extra: []
   };
+
+  ['primary', 'secondary', 'extra'].forEach(type => {
+    const usedBrands = new Set();
+    while (options[type].length < countPerType) {
+      const sponsor = generateRandomSponsor(type);
+      // Memastikan brand tidak duplikat dalam satu opsi tipe
+      if (!usedBrands.has(sponsor.name)) {
+        usedBrands.add(sponsor.name);
+        options[type].push(sponsor);
+      }
+    }
+  });
+
+  return options;
 }
