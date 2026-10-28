@@ -85,7 +85,6 @@ function handleRegistration(e) {
     gameState.startingLineupIds = gameState.roster.slice(0, 6).map(p => p.id);
 
     gameState.leagues = generateLeagueStructure(gameState.teamName);
-    gameState.sponsors = generateAllSponsors();
 
     generateMarketPool();
     generateLeagueSchedules();
