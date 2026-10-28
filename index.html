@@ -74,7 +74,7 @@
       <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Kalender & Musim</button>
       <button class="tab-btn" onclick="switchTab('tab-my-garage')">🚗 Garasi Mobil</button>
       <button class="tab-btn" onclick="switchTab('tab-sponsors')">🏢 Sponsor Tim</button>
-      <button class="tab-btn" onclick="switchTab('tab-mod-shop')">🛠️ Bengkel Modifikasi</button>
+      <button class="tab-btn" onclick="switchTab('tab-mod-shop')">🛠️ Toko & Bengkel</button>
       <button class="tab-btn" onclick="switchTab('tab-standings')">🏆 Klasemen GP</button>
       <button class="tab-btn" onclick="switchTab('tab-drivers')">🏎️ Bursa Driver</button>
       <button class="tab-btn" onclick="switchTab('tab-mechanics')">👨‍🔧 Mekanik</button>
@@ -87,6 +87,7 @@
       <!-- TAB DASHBOARD & KALENDER -->
       <section id="tab-dashboard" class="tab-panel active">
         <div id="welcome-banner-container"></div>
+        
         <div style="background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
           <div>
             <h3 style="color: #fff; margin-bottom: 4px;">🚀 Kontrol Waktu & Save Data</h3>
@@ -100,6 +101,10 @@
             </label>
           </div>
         </div>
+
+        <!-- KALENDER WADAH SIRKUIT -->
+        <h3 style="margin-bottom: 10px; color: var(--text-white);">📅 Jadwal 20 Sirkuit Musim Ini</h3>
+        <div id="calendar-container" class="cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));"></div>
       </section>
 
       <!-- TAB GARASI MOBIL SAYA -->
@@ -116,9 +121,17 @@
         <div id="sponsor-cards-container" class="cards-grid"></div>
       </section>
 
-      <!-- TAB BENGKEL MODIFIKASI -->
+      <!-- TAB TOKO MOBIL & BENGKEL MODIFIKASI -->
       <section id="tab-mod-shop" class="tab-panel">
+        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏎️ Toko Mobil Awal (Car Market)</h3>
+        <p style="color: var(--text-muted); margin-bottom: 15px;">Beli mobil balap untuk tim Anda (Maksimal 2 Mobil):</p>
+        <!-- WADAH TOKO MOBIL -->
+        <div id="market-cards-container" class="cards-grid" style="margin-bottom: 25px;"></div>
+
+        <hr style="border: 0; border-top: 1px solid #30363d; margin: 25px 0;">
+
         <h3 style="margin-bottom: 6px; color: var(--text-white);">🛠️ Bengkel Tuning & Toko Aksesoris</h3>
+        <!-- WADAH MODIFIKASI & BENGKEL -->
         <div id="garage-cards-container" class="cards-grid"></div>
       </section>
 
@@ -126,12 +139,25 @@
       <section id="tab-standings" class="tab-panel">
         <h3 style="margin-bottom: 10px; color: var(--text-white);">🏆 Klasemen Resmi Kejuaraan</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <!-- KLASEMEN DRIVER -->
           <div class="panel-box">
             <h4 style="color: #f39c12; margin-bottom: 10px;">🏎️ Klasemen Pembalap</h4>
-            <table class="data-table">
-              <thead><tr><th>POS</th><th>PEMBALAP</th><th>TIM</th><th>POIN</th></tr></thead>
-              <tbody id="driver-standings-body"></tbody>
-            </table>
+            <div style="max-height: 400px; overflow-y: auto;">
+              <table class="data-table">
+                <thead><tr><th>POS</th><th>PEMBALAP</th><th>TIM</th><th>POIN</th></tr></thead>
+                <tbody id="driver-standings-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- KLASEMEN TIM -->
+          <div class="panel-box">
+            <h4 style="color: #2ecc71; margin-bottom: 10px;">🏢 Klasemen Konstruktor Tim</h4>
+            <div style="max-height: 400px; overflow-y: auto;">
+              <table class="data-table">
+                <thead><tr><th>POS</th><th>TIM</th><th>POIN</th></tr></thead>
+                <tbody id="team-standings-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -210,6 +236,7 @@
   <script src="drivers.js"></script>
   <script src="mechanics.js"></script>
   <script src="cars.js"></script>
+  <script src="sponsor.js"></script>
   <script src="javascript.js"></script>
 </body>
 </html>
