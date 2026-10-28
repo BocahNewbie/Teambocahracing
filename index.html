@@ -1,242 +1,453 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NASCOT Championship Manager</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 15px; margin: 20px 0; }
-    .podium-step { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; border-radius: 8px 8px 0 0; padding: 10px; color: #fff; font-weight: bold; width: 120px; }
-    .podium-1 { height: 160px; background: linear-gradient(180deg, #f1c40f, #b7950b); order: 2; }
-    .podium-2 { height: 120px; background: linear-gradient(180deg, #bdc3c7, #7f8c8d); order: 1; }
-    .podium-3 { height: 90px; background: linear-gradient(180deg, #e67e22, #d35400); order: 3; }
-    .commentary-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; height: 120px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px; color: #2ecc71; margin-top: 15px; }
-    .commentary-line { margin-bottom: 4px; border-bottom: 1px solid #161b22; padding-bottom: 2px; }
-    .durability-bar { height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin-top: 4px; }
-    .durability-fill { height: 100%; transition: width 0.3s; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volleyball Manager Simulation</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="min-h-screen flex flex-col bg-slate-900 text-slate-100">
 
-  <!-- MODAL SELEKSI TIM PERTAMA KALI -->
-  <div id="welcome-modal" class="overlay-screen">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h2>🏎️ KEJUARAAN NASCOT GRAND PRIX</h2>
-        <p>Pilih tim yang ingin Anda kelola untuk memulai karir manajer!</p>
-      </div>
-      <div class="modal-body">
-        <div id="team-select-container" class="team-select-grid"></div>
-      </div>
-    </div>
-  </div>
+    <!-- Top Navigation Header -->
+    <header id="top-header" class="hidden bg-slate-800/90 border-b border-slate-700/80 sticky top-0 z-30 backdrop-blur-md px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <!-- Team & Manager Info -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/30">
+                    <span id="header-team-logo">V</span>
+                </div>
+                <div>
+                    <h1 id="header-team-name" class="font-bold text-sm md:text-base text-white leading-tight">Nama Tim</h1>
+                    <p id="header-manager-name" class="text-xs text-slate-400">Manager: -</p>
+                </div>
+            </div>
 
-  <!-- MODAL POPUP PODIUM SELESAI BALAPAN -->
-  <div id="podium-modal" class="overlay-screen" style="display: none;">
-    <div class="modal-box" style="max-width: 600px; text-align: center;">
-      <div class="modal-header">
-        <h2>🏆 PODIUM JUARA GRAND PRIX 🏆</h2>
-        <p id="podium-track-name">Sirkuit Balap</p>
-      </div>
-      <div class="modal-body">
-        <div class="podium-container" id="podium-winners-display"></div>
-        <button class="btn-action" style="margin-top: 15px;" onclick="closePodiumAndShowStandings()">Lihat Klasemen Poin Grand Prix 📊</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="app">
-    <!-- Header Financial & Status -->
-    <header class="top-bar">
-      <div class="brand">
-        <span style="font-size: 24px;">🚐</span>
-        <h1>NASCOT <span>MANAGER</span></h1>
-      </div>
-      <div class="financial-status">
-        <div class="stat-card">
-          <span class="lbl">TANGGAL SEKARANG</span>
-          <span class="val highlight" id="current-game-date">1 Jun 2026</span>
+            <!-- Season & Status Badges -->
+            <div class="flex items-center gap-3 ml-auto md:ml-0">
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 py-1.5 text-center">
+                    <p class="text-[10px] uppercase font-bold text-slate-400">Tingkat Liga</p>
+                    <p id="header-tier-name" class="font-bold text-cyan-400 text-xs md:text-sm truncate max-w-[120px]">Liga 5 (Amatir)</p>
+                </div>
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 py-1.5 text-center">
+                    <p class="text-[10px] uppercase font-bold text-slate-400">Pekan</p>
+                    <p id="header-week" class="font-bold text-amber-400 text-xs md:text-sm">1 / 14</p>
+                </div>
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-3 py-1.5 text-center">
+                    <p class="text-[10px] uppercase font-bold text-slate-400">Pemain Asing</p>
+                    <p id="header-foreign-count" class="font-bold text-cyan-400 text-xs md:text-sm">1 / 2</p>
+                </div>
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-4 py-1.5 text-right">
+                    <p class="text-[10px] uppercase font-bold text-slate-400">Kas Klub</p>
+                    <p id="header-budget" class="font-bold text-emerald-400 text-sm md:text-base">Rp 2.000.000</p>
+                </div>
+                <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl px-4 py-1.5 text-center">
+                    <p class="text-[10px] uppercase font-bold text-slate-400">Posisi Liga</p>
+                    <p id="header-rank" class="font-bold text-amber-400 text-sm md:text-base">#1</p>
+                </div>
+            </div>
         </div>
-        <div class="stat-card">
-          <span class="lbl">TIM PILIHAN</span>
-          <span class="val highlight" id="player-team-name">-</span>
-        </div>
-        <div class="stat-card">
-          <span class="lbl">MODAL KAS TIM</span>
-          <span class="val" id="team-cash">Rp 500.000.000</span>
-        </div>
-      </div>
     </header>
 
-    <!-- Navigation Tabs -->
-    <nav class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('tab-dashboard')">📊 Kalender & Musim</button>
-      <button class="tab-btn" onclick="switchTab('tab-my-garage')">🚗 Garasi Mobil</button>
-      <button class="tab-btn" onclick="switchTab('tab-sponsors')">🏢 Sponsor Tim</button>
-      <button class="tab-btn" onclick="switchTab('tab-mod-shop')">🛠️ Toko & Bengkel</button>
-      <button class="tab-btn" onclick="switchTab('tab-standings')">🏆 Klasemen GP</button>
-      <button class="tab-btn" onclick="switchTab('tab-drivers')">🏎️ Bursa Driver</button>
-      <button class="tab-btn" onclick="switchTab('tab-mechanics')">👨‍🔧 Mekanik</button>
-      <button class="tab-btn" id="btn-tab-race" onclick="switchTab('tab-race')">🏁 Live Race</button>
-    </nav>
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 flex flex-col">
 
-    <!-- Main Content Panels -->
-    <main class="main-content">
-      
-      <!-- TAB DASHBOARD & KALENDER -->
-      <section id="tab-dashboard" class="tab-panel active">
-        <div id="welcome-banner-container"></div>
-        
-        <div style="background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <h3 style="color: #fff; margin-bottom: 4px;">🚀 Kontrol Waktu & Save Data</h3>
-            <p style="color: #8b949e; font-size: 12px;">Maju 1 hari untuk simulasi mingguan dan pemicu berita event acak!</p>
-          </div>
-          <div style="display: flex; gap: 10px;">
-            <button class="btn-action" style="background: #1f6feb; width: auto; padding: 10px 15px;" onclick="advanceCalendarDay()">⏩ MAJU 1 HARI</button>
-            <button class="btn-action" style="background: #30363d; width: auto; padding: 10px 15px;" onclick="exportSaveData()">💾 EXPORT SAVE</button>
-            <label class="btn-action" style="background: #30363d; width: auto; padding: 10px 15px; cursor:pointer;">
-              📂 IMPORT <input type="file" onchange="importSaveData(event)" style="display:none;">
-            </label>
-          </div>
-        </div>
-
-        <!-- KALENDER WADAH SIRKUIT -->
-        <h3 style="margin-bottom: 10px; color: var(--text-white);">📅 Jadwal Musim Ini (40 Balapan / 8 Bulan)</h3>
-        <div id="calendar-container" class="cards-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));"></div>
-      </section>
-
-      <!-- TAB GARASI MOBIL SAYA -->
-      <section id="tab-my-garage" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🚗 Diagnostik & Kondisi Mobil Tim</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Pantau kondisi ketahanan fisik (mesin & bodi) mobil balap Anda:</p>
-        <div id="my-garage-container" class="cards-grid"></div>
-      </section>
-
-      <!-- TAB SPONSOR TIM -->
-      <section id="tab-sponsors" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏢 Manajerial Kontrak Sponsor</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Dapatkan dana tambahan untuk setiap balapan dengan menyetujui kontrak sponsor:</p>
-        <div id="sponsor-cards-container" class="cards-grid"></div>
-      </section>
-
-      <!-- TAB TOKO MOBIL & BENGKEL MODIFIKASI -->
-      <section id="tab-mod-shop" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏎️ Toko Mobil Awal (Car Market)</h3>
-        <p style="color: var(--text-muted); margin-bottom: 15px;">Beli mobil balap untuk tim Anda (Maksimal 2 Mobil):</p>
-        <!-- WADAH TOKO MOBIL -->
-        <div id="market-cards-container" class="cards-grid" style="margin-bottom: 25px;"></div>
-
-        <hr style="border: 0; border-top: 1px solid #30363d; margin: 25px 0;">
-
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🛠️ Bengkel Tuning & Toko Aksesoris</h3>
-        <!-- WADAH MODIFIKASI & BENGKEL -->
-        <div id="garage-cards-container" class="cards-grid"></div>
-      </section>
-
-      <!-- TAB KLASEMEN GRAND PRIX -->
-      <section id="tab-standings" class="tab-panel">
-        <h3 style="margin-bottom: 10px; color: var(--text-white);">🏆 Klasemen Resmi Kejuaraan</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-          <!-- KLASEMEN DRIVER -->
-          <div class="panel-box">
-            <h4 style="color: #f39c12; margin-bottom: 10px;">🏎️ Klasemen Pembalap</h4>
-            <div style="max-height: 400px; overflow-y: auto;">
-              <table class="data-table">
-                <thead><tr><th>POS</th><th>PEMBALAP</th><th>TIM</th><th>POIN</th></tr></thead>
-                <tbody id="driver-standings-body"></tbody>
-              </table>
+        <!-- SETUP SCREEN (REGISTRATION) -->
+        <section id="screen-setup" class="my-auto max-w-xl w-full mx-auto bg-slate-800/60 border border-slate-700/80 p-6 md:p-8 rounded-3xl shadow-2xl backdrop-blur-sm">
+            <div class="text-center mb-6">
+                <div class="inline-flex p-4 rounded-2xl bg-blue-600/20 text-blue-400 mb-3 border border-blue-500/30">
+                    <i class="fa-solid fa-volleyball text-4xl"></i>
+                </div>
+                <h2 class="text-2xl font-black text-white tracking-tight">Pendaftaran Liga Bola Voli</h2>
+                <p class="text-slate-400 text-xs md:text-sm mt-1">Daftarkan tim Anda dan mulailah perjalanan menjadi juara liga!</p>
             </div>
-          </div>
-          <!-- KLASEMEN TIM -->
-          <div class="panel-box">
-            <h4 style="color: #2ecc71; margin-bottom: 10px;">🏢 Klasemen Konstruktor Tim</h4>
-            <div style="max-height: 400px; overflow-y: auto;">
-              <table class="data-table">
-                <thead><tr><th>POS</th><th>TIM</th><th>POIN</th></tr></thead>
-                <tbody id="team-standings-body"></tbody>
-              </table>
+
+            <form id="form-setup" onsubmit="handleRegistration(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-300 mb-1">Nama Tim</label>
+                    <input type="text" id="input-team-name" required placeholder="Contoh: Jakarta Garuda FC"
+                           class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-white transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-300 mb-1">Nama Manager / Pelatih</label>
+                    <input type="text" id="input-manager-name" required placeholder="Nama Anda"
+                           class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-white transition">
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-700/60 p-4 rounded-2xl text-xs space-y-2 text-slate-300">
+                    <p class="font-bold text-amber-400 flex items-center gap-1.5"><i class="fa-solid fa-circle-info"></i> Sistem Piramida 5 Tingkatan Liga:</p>
+                    <ul class="list-disc list-inside space-y-1 text-slate-400">
+                        <li>Start Perjuangan: <b class="text-cyan-400">Liga 5 (Liga Voli Amatir)</b></li>
+                        <li>Kas Awal Klub: <b class="text-emerald-400">Rp 2.000.000</b></li>
+                        <li>Roster Awal: <b class="text-slate-200">Pemain Tier H - F</b></li>
+                        <li>Juara 1 & 2: <b class="text-emerald-400">Otomatis Promosi Naik Kasta</b></li>
+                        <li>Peringkat 13 vs Juara 3 Liga Bawah: <b class="text-amber-400">Laga Playoff Penentuan Kasta</b></li>
+                        <li>2 Peringkat Terbawah (14 & 15): <b class="text-rose-400">Otomatis Degradasi</b></li>
+                    </ul>
+                </div>
+
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition duration-200">
+                    Mulai Dari Liga 5 <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </form>
+        </section>
+
+        <!-- DASHBOARD MANAGEMENT AREA -->
+        <div id="screen-dashboard" class="hidden flex-1 flex flex-col space-y-6">
+
+            <!-- Tab Navigation Bar -->
+            <nav class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+                <button onclick="switchTab('squad')" id="tab-btn-squad" class="tab-btn active px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm bg-blue-600 text-white flex items-center gap-2 transition">
+                    <i class="fa-solid fa-users"></i> Skuad Tim
+                </button>
+                <button onclick="switchTab('sponsor')" id="tab-btn-sponsor" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-handshake"></i> Sponsor
+                </button>
+                <button onclick="switchTab('standings')" id="tab-btn-standings" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-trophy"></i> Klasemen Liga
+                </button>
+                <button onclick="switchTab('match')" id="tab-btn-match" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-volleyball"></i> Pertandingan
+                </button>
+                <button onclick="switchTab('market')" id="tab-btn-market" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-store"></i> Pasar Transfer
+                </button>
+                <button onclick="switchTab('inbox')" id="tab-btn-inbox" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 flex items-center gap-2 transition relative">
+                    <i class="fa-solid fa-envelope"></i> Pesan
+                    <span id="inbox-badge-count" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black animate-pulse">0</span>
+                </button>
+                <button onclick="switchTab('news')" id="tab-btn-news" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-newspaper"></i> Berita Transfer
+                </button>
+            </nav>
+
+            <!-- TAB CONTENT: SQUAD & TIM -->
+            <div id="tab-content-squad" class="space-y-6">
+                <!-- Volleyball Court Lineup Grid -->
+                <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-3xl">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="font-bold text-base text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shirt text-blue-400"></i> Formasi Lapangan (6 Utama)
+                            </h3>
+                            <p class="text-xs text-slate-400">Penataan posisi pemain starter di lapangan voli</p>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-400">
+                            Rata-rata OVR Lineup: <span id="lineup-avg-ovr">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Visual Court -->
+                    <div class="volleyball-court rounded-2xl p-4 md:p-6 min-h-[300px] flex flex-col justify-between shadow-inner">
+                        <div class="w-full border-b-4 border-dashed border-white/80 my-2 relative text-center">
+                            <span class="bg-white text-blue-900 font-black text-[10px] px-3 py-0.5 rounded-full uppercase tracking-wider relative -top-3 shadow">NET</span>
+                        </div>
+
+                        <!-- Front Row -->
+                        <div class="grid grid-cols-3 gap-2 md:gap-4 my-2">
+                            <div id="court-pos-4" class="bg-slate-900/80 backdrop-blur border border-slate-500/40 rounded-xl p-2.5 text-center min-h-[90px] flex flex-col justify-center"></div>
+                            <div id="court-pos-3" class="bg-slate-900/80 backdrop-blur border border-slate-500/40 rounded-xl p-2.5 text-center min-h-[90px] flex flex-col justify-center"></div>
+                            <div id="court-pos-2" class="bg-slate-900/80 backdrop-blur border border-slate-500/40 rounded-xl p-2.5 text-center min-h-[90px] flex flex-col justify-center"></div>
+                        </div>
+
+                        <!-- Back Row -->
+                        <div class="grid grid-cols-3 gap-2 md:gap-4 my-2">
+                            <div id="court-pos-5" class="bg-slate-900/80 backdrop-blur border border-slate-500/40 rounded-xl p-2.5 text-center min-h-[90px] flex flex-col justify-center"></div>
+                            <div id="court-pos-6" class="bg-slate-900/80 backdrop-blur border border-slate-500/40 rounded-xl p-2.5 text-center min-h-[90px] flex flex-col justify-center"></div>
+                            <div id="court-pos-1" class="bg-slate-900/80 backdrop-blur border border-slate-500/40 rounded-xl p-2.5 text-center min-h-[90px] flex flex-col justify-center"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Squad Roster Table -->
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-3xl overflow-hidden p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-base text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list text-emerald-400"></i> Daftar Anggota Skuad Roster
+                        </h3>
+                        <span class="text-xs text-slate-400 font-medium">Klik pemain untuk aksi detail</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3">Nama Pemain</th>
+                                    <th class="p-3">Posisi</th>
+                                    <th class="p-3">Tier</th>
+                                    <th class="p-3 text-center">OVR</th>
+                                    <th class="p-3 text-center">Stamina</th>
+                                    <th class="p-3">Gaji / Match</th>
+                                    <th class="p-3">Kontrak</th>
+                                    <th class="p-3">Nilai Pasar</th>
+                                    <th class="p-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="squad-roster-tbody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-          </div>
+
+            <!-- TAB CONTENT: SPONSOR -->
+            <div id="tab-content-sponsor" class="hidden space-y-6">
+                <div class="bg-slate-800/60 border border-slate-700/60 p-6 rounded-3xl">
+                    <h3 class="font-bold text-lg text-white mb-1">Kontrak Sponsorship Tim</h3>
+                    <p class="text-xs text-slate-400 mb-6">Pilih sponsor untuk mendanai operasional klub dengan objektif acak dinamis setiap musim.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div id="sponsor-card-primary" class="bg-slate-900/80 border border-slate-700 p-5 rounded-2xl flex flex-col justify-between space-y-4"></div>
+                        <div id="sponsor-card-secondary" class="bg-slate-900/80 border border-slate-700 p-5 rounded-2xl flex flex-col justify-between space-y-4"></div>
+                        <div id="sponsor-card-extra" class="bg-slate-900/80 border border-slate-700 p-5 rounded-2xl flex flex-col justify-between space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: KLASEMEN -->
+            <div id="tab-content-standings" class="hidden space-y-6">
+                <div class="bg-slate-800/60 border border-slate-700/60 p-6 rounded-3xl">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h3 id="standings-league-title" class="font-bold text-lg text-white">Klasemen Liga Voli</h3>
+                            <p class="text-xs text-slate-400">Piramida kompetisi 5 tingkatan kasta liga voli</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-400 font-bold">Pilih Kasta:</label>
+                            <select id="select-league-tier" onchange="renderStandingsUI()" class="bg-slate-900 border border-slate-700 text-xs font-bold text-cyan-400 px-3 py-2 rounded-xl focus:outline-none">
+                                <option value="1">Liga 1 (Proliga Indonesia)</option>
+                                <option value="2">Liga 2 (Divisi Utama Voli)</option>
+                                <option value="3">Liga 3 (Divisi Satu Nasional)</option>
+                                <option value="4">Liga 4 (Liga Voli Wilayah)</option>
+                                <option value="5">Liga 5 (Liga Voli Amatir)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                                    <th class="p-3 text-center">#</th>
+                                    <th class="p-3">Nama Tim</th>
+                                    <th class="p-3 text-center">Main</th>
+                                    <th class="p-3 text-center">M</th>
+                                    <th class="p-3 text-center">K</th>
+                                    <th class="p-3 text-center">Set W-L</th>
+                                    <th class="p-3 text-center">Poin</th>
+                                    <th class="p-3 text-center">Zona Kasta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="standings-tbody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl text-[11px] text-slate-400 flex flex-wrap gap-4">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Zona Promosi Otomatis (Posisi 1-2)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500"></span> Zona Playoff (Posisi 13 vs Juara 3 Kasta Bawah)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500"></span> Zona Degradasi Otomatis (Posisi 14-15)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: PERTANDINGAN -->
+            <div id="tab-content-match" class="hidden space-y-6">
+                <div class="bg-slate-800/60 border border-slate-700/60 p-6 rounded-3xl">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="font-bold text-lg text-white">Simulasi Pertandingan Pekan Ini</h3>
+                            <p id="match-schedule-title" class="text-xs text-slate-400">Pekan ke-1 dari 14</p>
+                        </div>
+                        <button id="btn-start-match" onclick="handleMatchButtonClick()" class="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition">
+                            <i class="fa-solid fa-play mr-2"></i> Simulasi Semua Pertandingan
+                        </button>
+                    </div>
+
+                    <div id="match-live-container" class="bg-slate-900 border border-slate-700/80 p-6 rounded-2xl mb-6">
+                        <div class="grid grid-cols-3 items-center text-center gap-4">
+                            <div>
+                                <p id="match-home-name" class="font-extrabold text-sm md:text-lg text-white">Tim Anda</p>
+                                <span class="text-[10px] uppercase font-bold text-slate-500">Tuan Rumah</span>
+                            </div>
+                            <div>
+                                <div id="match-score-display" class="text-3xl md:text-5xl font-black text-amber-400 tracking-wider">0 - 0</div>
+                                <span id="match-sets-display" class="text-xs font-mono text-slate-400">Set: (0 - 0)</span>
+                            </div>
+                            <div>
+                                <p id="match-away-name" class="font-extrabold text-sm md:text-lg text-white">Tim Lawan</p>
+                                <span class="text-[10px] uppercase font-bold text-slate-500">Tamu</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex justify-between items-center px-1">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live Match Log
+                            </span>
+                            <button id="btn-skip-match" onclick="skipMatchAnimation()" class="hidden px-3 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-bold rounded-lg transition">
+                                <i class="fa-solid fa-forward mr-1"></i> Lewati / Hasil Cepat
+                            </button>
+                        </div>
+
+                        <div class="mt-2 bg-slate-950 border border-slate-800 rounded-xl p-4 h-64 overflow-y-auto font-mono text-xs text-slate-300 space-y-2" id="match-commentary-log">
+                            <p class="text-slate-500 italic text-center py-10">Klik tombol "Simulasi Semua Pertandingan" di atas untuk memulai jalannya laga.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-xs uppercase text-slate-400 mb-3">Hasil Laga Lain Pekan Ini:</h4>
+                        <div id="other-matches-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: PASAR TRANSFER -->
+            <div id="tab-content-market" class="hidden space-y-6">
+                <div class="bg-slate-800/60 border border-slate-700/60 p-6 rounded-3xl">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="font-bold text-lg text-white">Bursa Transfer & Pemain Bebas</h3>
+                            <p class="text-xs text-slate-400">Cari bakat baru dari klub lain atau agen bebas untuk memperkuat tim Anda.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="market-filter-pos" onchange="renderTransferMarket()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200">
+                                <option value="ALL">Semua Posisi</option>
+                                <option value="Outside Hitter">Outside Hitter</option>
+                                <option value="Middle Blocker">Middle Blocker</option>
+                                <option value="Opposite Hitter">Opposite Hitter</option>
+                                <option value="Setter">Setter</option>
+                                <option value="Libero">Libero</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="market-players-grid"></div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: INBOX / PESAN -->
+            <div id="tab-content-inbox" class="hidden space-y-6">
+                <div class="bg-slate-800/60 border border-slate-700/60 p-6 rounded-3xl">
+                    <h3 class="font-bold text-lg text-white mb-2">Kotak Masuk & Notifikasi</h3>
+                    <p class="text-xs text-slate-400 mb-6">Pemberitahuan penting mengenai negosiasi, tawaran klub lain, dan pembaruan kontrak.</p>
+                    <div id="inbox-messages-list" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT: BERITA TRANSFER -->
+            <div id="tab-content-news" class="hidden space-y-6">
+                <div class="bg-slate-800/60 border border-slate-700/60 p-6 rounded-3xl">
+                    <h3 class="font-bold text-lg text-white mb-4">Papan Informasi & Berita Transfer</h3>
+                    <div id="transfer-news-feed" class="space-y-3 max-h-[500px] overflow-y-auto pr-2"></div>
+                </div>
+            </div>
+
         </div>
-      </section>
-
-      <!-- TAB KONTRAK DRIVER -->
-      <section id="tab-drivers" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">🏎️ Bursa & Negosiasi Driver</h3>
-        <div id="driver-cards-container" class="cards-grid"></div>
-      </section>
-
-      <!-- TAB KONTRAK MEKANIK -->
-      <section id="tab-mechanics" class="tab-panel">
-        <h3 style="margin-bottom: 6px; color: var(--text-white);">👨‍🔧 Bursa & Negosiasi Mekanik</h3>
-        <div id="mechanic-cards-container" class="cards-grid"></div>
-      </section>
-
-      <!-- TAB LIVE RACE SIMULATOR & KOMENTATOR -->
-      <section id="tab-race" class="tab-panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; background: #161b22; padding: 15px; border-radius: 8px; border: 1px solid #30363d; margin-bottom: 15px;">
-          <div>
-            <h2 id="race-track-name" style="color: #f39c12;">🏁 Grand Prix Circuit</h2>
-            <span id="race-status" style="color: #2ecc71; font-weight: bold;">READY AT GRID</span>
-          </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <button id="btn-toggle-race" class="btn-action" style="width: auto; padding: 8px 18px;" onclick="toggleRaceEngine()">🟢 MULAI START BALAPAN</button>
-            <button class="btn-action" style="width: auto; padding: 8px 18px; background:#d35400;" onclick="triggerPitStop()">👨‍🔧 CALL PIT STOP</button>
-            <span style="font-size: 11px; color:#8b949e;">Speed:</span>
-            <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(1.0)">1x</button>
-            <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(2.0)">2x</button>
-            <button class="btn-action" style="width:auto; padding:5px 10px; background:#30363d;" onclick="setSimSpeed(5.0)">5x</button>
-          </div>
-        </div>
-
-        <!-- RADAR BALAPAN CANVAS 2D -->
-        <div class="panel-box" style="text-align: center; margin-bottom: 15px;">
-          <h4 style="color:#8b949e; margin-bottom: 8px;">📡 RADAR LINTASAN REAL-TIME</h4>
-          <canvas id="race-radar-canvas" width="600" height="120" style="background:#0d1117; border-radius:8px; border:1px solid #30363d;"></canvas>
-        </div>
-
-        <!-- TIMING TOWER -->
-        <div class="panel-box" style="padding:0; overflow:hidden;">
-          <div style="padding: 12px 15px; background: #21262d; display:flex; justify-content:space-between;">
-            <span id="race-lap-counter" style="font-weight:bold; color:#fff;">LAP 1 / 20</span>
-            <span style="font-size:12px; color:#8b949e;">LIVE TIMING TOWER</span>
-          </div>
-          <div style="max-height: 300px; overflow-y: auto;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th style="width: 50px;">POS</th>
-                  <th style="width: 180px;">TIM</th>
-                  <th>PEMBALAP</th>
-                  <th>TOTAL WAKTU</th>
-                  <th>GAP</th>
-                  <th>BAN</th>
-                  <th>KONDISI</th>
-                  <th>BEST LAP</th>
-                </tr>
-              </thead>
-              <tbody id="timing-tower-body"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- STREAM KOMENTATOR LIVE -->
-        <div class="commentary-box" id="race-commentary-stream">
-          <div class="commentary-line">🎙️ [SYSTEM] Selamat datang di siaran langsung Grand Prix NASCOT! Menunggu balapan dimulai...</div>
-        </div>
-      </section>
-
     </main>
-  </div>
 
-  <script src="teams.js"></script>
-  <script src="tracks.js"></script>
-  <script src="drivers.js"></script>
-  <script src="mechanics.js"></script>
-  <script src="cars.js"></script>
-  <script src="sponsor.js"></script>
-  <script src="javascript.js"></script>
+    <!-- MODAL: PLAYER DETAIL & MANAGEMENT -->
+    <div id="modal-player-detail" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 max-w-md w-full rounded-3xl p-6 shadow-2xl relative">
+            <button onclick="closeModal('modal-player-detail')" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div id="modal-player-content"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHAT NEGOTIATION POPUP -->
+    <div id="modal-negotiation-chat" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 max-w-lg w-full rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[600px] max-h-[90vh]">
+            <div class="bg-slate-800 px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div id="nego-avatar" class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-lg">😀</div>
+                    <div>
+                        <h4 id="nego-target-name" class="font-bold text-sm text-white">Nama Pemain/Klub</h4>
+                        <p id="nego-target-subtitle" class="text-xs text-slate-400">Negosiasi Kontrak & Gaji</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-negotiation-chat')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div id="nego-chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/50 font-sans text-xs"></div>
+
+            <div class="bg-slate-800 p-4 border-t border-slate-700 space-y-3">
+                <div id="nego-controls-fee" class="hidden space-y-1">
+                    <div class="flex justify-between text-xs text-slate-300">
+                        <span>Tawaran Biaya Transfer Klub:</span>
+                        <b id="display-offer-fee" class="text-emerald-400">Rp 0</b>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="adjustOffer('fee', -50000)" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 font-bold text-xs">-</button>
+                        <input type="range" id="slider-offer-fee" min="10000" max="10000000" step="1000" oninput="syncOfferDisplay('fee')" class="flex-1 accent-emerald-500 cursor-pointer">
+                        <button onclick="adjustOffer('fee', 50000)" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 font-bold text-xs">+</button>
+                    </div>
+                </div>
+
+                <div id="nego-controls-salary" class="space-y-1">
+                    <div class="flex justify-between text-xs text-slate-300">
+                        <span>Tawaran Gaji / Pertandingan:</span>
+                        <b id="display-offer-salary" class="text-emerald-400">Rp 0</b>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="adjustOffer('salary', -1000)" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 font-bold text-xs">-</button>
+                        <input type="range" id="slider-offer-salary" min="1000" max="500000" step="500" oninput="syncOfferDisplay('salary')" class="flex-1 accent-blue-500 cursor-pointer">
+                        <button onclick="adjustOffer('salary', 1000)" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 font-bold text-xs">+</button>
+                    </div>
+                </div>
+
+                <div id="nego-controls-matches" class="space-y-1">
+                    <div class="flex justify-between text-xs text-slate-300">
+                        <span>Lama Kontrak (Pertandingan):</span>
+                        <b id="display-offer-matches" class="text-amber-400">14 Match</b>
+                    </div>
+                    <input type="range" id="slider-offer-matches" min="5" max="28" step="1" oninput="syncOfferDisplay('matches')" class="w-full accent-amber-500 cursor-pointer">
+                </div>
+
+                <button id="btn-submit-nego" onclick="submitNegotiationOffer()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition">
+                    Kirim Penawaran
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ALERT POPUP -->
+    <div id="modal-alert" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 max-w-sm w-full rounded-2xl p-5 text-center space-y-3">
+            <div id="alert-icon" class="text-3xl text-amber-400"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h4 id="alert-title" class="font-bold text-white text-base">Pemberitahuan</h4>
+            <p id="alert-message" class="text-xs text-slate-300 leading-relaxed"></p>
+            <button onclick="closeModal('modal-alert')" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-xl">Tutup</button>
+        </div>
+    </div>
+
+    <!-- MODAL: PLAYER SWAP & COMPARE POPUP -->
+    <div id="modal-swap-player" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 max-w-xl w-full rounded-3xl p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('modal-swap-player')" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="text-center">
+                <h3 class="font-bold text-lg text-white">Ganti Pemain Utama</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Pilih pemain cadangan untuk menggantikan posisi starter</p>
+            </div>
+            <div id="swap-starter-card" class="bg-slate-800/80 border border-amber-500/30 p-4 rounded-2xl space-y-2"></div>
+            <div>
+                <h4 class="font-bold text-xs uppercase text-slate-400 mb-2">Pilih Pemain Pengganti (Cadangan):</h4>
+                <div id="swap-candidates-list" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript File Dependencies -->
+    <script src="player.js"></script>
+    <script src="team.js"></script>
+    <script src="sponsor.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
