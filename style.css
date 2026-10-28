@@ -1,121 +1,32 @@
-:root {
-  --bg-dark: #0b0e14;
-  --bg-card: #161b22;
-  --bg-card-hover: #1c2128;
-  --border-color: #30363d;
-  --accent-gold: #f39c12;
-  --accent-green: #2ecc71;
-  --accent-red: #e74c3c;
-  --text-main: #c9d1d9;
-  --text-muted: #8b949e;
-  --text-white: #ffffff;
+/* Base Font and Layout Styling */
+body {
+font-family: 'Inter', sans-serif;
+background-color: #0f172a;
+color: #f8fafc;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-body { background-color: var(--bg-dark); color: var(--text-main); font-size: 14px; }
-
-/* Modal Selection Screen */
-.overlay-screen {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(11, 14, 20, 0.96); z-index: 9999;
-  display: flex; justify-content: center; align-items: center; padding: 20px;
-}
-.modal-box {
-  background: var(--bg-card); border: 1px solid var(--border-color);
-  border-radius: 12px; max-width: 950px; width: 100%; max-height: 85vh;
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.modal-header { padding: 20px; border-bottom: 1px solid var(--border-color); text-align: center; }
-.modal-header h2 { color: var(--accent-gold); font-size: 24px; }
-.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
-
-.team-select-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.team-card-select {
-  background: var(--bg-dark); border: 2px solid var(--border-color); border-radius: 8px;
-  padding: 12px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px;
-}
-.team-card-select:hover { border-color: var(--accent-gold); transform: translateY(-2px); }
-.team-badge { width: 28px; height: 28px; border-radius: 4px; flex-shrink: 0; border: 1px solid #fff; }
-
-/* Header & Stat Cards */
-.top-bar {
-  display: flex; justify-content: space-between; align-items: center;
-  background-color: var(--bg-card); padding: 15px 25px; border-bottom: 2px solid var(--border-color);
-}
-.brand h1 { font-size: 20px; color: #fff; }
-.brand h1 span { color: var(--accent-gold); }
-
-.financial-status { display: flex; gap: 15px; }
-.stat-card { background: var(--bg-dark); padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color); }
-.stat-card .lbl { display: block; font-size: 10px; color: var(--text-muted); font-weight: 700; }
-.stat-card .val { font-size: 14px; color: var(--accent-green); font-weight: bold; }
-.stat-card .val.highlight { color: var(--accent-gold); }
-
-/* Navigation Tabs */
-.nav-tabs { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-color); }
-.tab-btn {
-  background: none; border: none; padding: 14px 20px; color: var(--text-muted);
-  font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.2s;
-}
-.tab-btn.active, .tab-btn:hover { color: var(--accent-gold); border-bottom-color: var(--accent-gold); background: var(--bg-card-hover); }
-
-.main-content { padding: 20px; max-width: 1400px; margin: 0 auto; }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-
-/* Card Model Layout */
-.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-top: 15px; }
-.card-item {
-  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;
-  padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
-}
-.card-item:hover { border-color: var(--accent-gold); }
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
-.card-title { font-size: 15px; font-weight: bold; color: var(--text-white); }
-.card-badge { background: var(--border-color); color: var(--accent-gold); padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
-
-.card-stats { display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-bottom: 15px; }
-.stat-row { display: flex; justify-content: space-between; color: var(--text-muted); }
-.stat-row span:last-child { color: var(--text-white); font-weight: 600; }
-
-.btn-action {
-  background: var(--accent-green); color: #fff; border: none; padding: 8px 14px;
-  border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; transition: 0.2s;
-}
-.btn-action:hover { opacity: 0.9; }
-.btn-action:disabled { background: var(--border-color); cursor: not-allowed; opacity: 0.6; }
-
-.nego-box { display: flex; gap: 6px; margin-top: 8px; }
-.nego-input {
-  background: var(--bg-dark); border: 1px solid var(--border-color); color: #fff;
-  padding: 6px 10px; border-radius: 4px; width: 60%; font-size: 12px;
+/* Volleyball Court Styling */
+.volleyball-court {
+background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+border: 4px solid #ffffff;
+position: relative;
 }
 
-/* Kalender Race Grid */
-.calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 15px; }
-.calendar-day {
-  background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;
-  padding: 12px; min-height: 90px; display: flex; flex-direction: column; justify-content: space-between;
-}
-.calendar-day.race-day { border-color: var(--accent-gold); background: rgba(243, 156, 18, 0.05); }
-.calendar-day .date-num { font-weight: bold; color: var(--accent-gold); font-size: 13px; }
-.calendar-day .event-title { font-size: 11px; margin-top: 4px; color: var(--text-white); font-weight: 600; }
-
-/* KOTAK KINCLONG BADGE TIM PERSEGI PANJANG UJUNG RUNCING */
-.chamfer-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  font-weight: bold;
-  font-size: 11px;
-  color: #fff;
-  text-transform: uppercase;
-  /* Bentuk Persegi Panjang Ujung Runcing (Chamfered Corners) */
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+width: 6px;
+height: 6px;
 }
 
-.welcome-banner {
-  background: linear-gradient(90deg, #161b22, #1f2937); border-left: 4px solid var(--accent-gold);
-  padding: 15px 20px; border-radius: 6px; margin-bottom: 20px;
+::-webkit-scrollbar-track {
+background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+background: #475569;
+border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+background: #64748b;
 }
