@@ -1,179 +1,41 @@
-const sponsor = [
-  // Minuman & Konsumsi
-  { nama: "Red Bull", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Monster Energy", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Rockstar Energy", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Rich Energy", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Lucozade", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Hype Energy", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Celsius Energy", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Coca-Cola", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "PepsiCo", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Heineken", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Peroni", kategori: "Minuman Energi & Konsumsi" },
-  { nama: "Estrella Galicia", kategori: "Minuman Energi & Konsumsi" },
-
-  // Minyak, Bahan Bakar & Pelumas
-  { nama: "Petronas", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Shell", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Mobil 1", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Castrol", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Motul", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Gulf Oil", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "TotalEnergies", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Valvoline", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Repsol", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Eni", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "BP", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "ARAL", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Sunoco", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Ravenol", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Liqui Moly", kategori: "Minyak, Bahan Bakar & Energi" },
-  { nama: "Elf", kategori: "Minyak, Bahan Bakar & Energi" },
-
-  // Ban & Roda
-  { nama: "Pirelli", kategori: "Ban & Roda" },
-  { nama: "Michelin", kategori: "Ban & Roda" },
-  { nama: "Goodyear", kategori: "Ban & Roda" },
-  { nama: "Bridgestone", kategori: "Ban & Roda" },
-  { nama: "Yokohama", kategori: "Ban & Roda" },
-  { nama: "Hankook", kategori: "Ban & Roda" },
-  { nama: "Continental", kategori: "Ban & Roda" },
-  { nama: "Dunlop", kategori: "Ban & Roda" },
-  { nama: "Toyo Tires", kategori: "Ban & Roda" },
-  { nama: "Falken Tires", kategori: "Ban & Roda" },
-  { nama: "Kumho Tire", kategori: "Ban & Roda" },
-  { nama: "Hoosier Racing Tire", kategori: "Ban & Roda" },
-  { nama: "BBS Wheels", kategori: "Ban & Roda" },
-  { nama: "OZ Racing", kategori: "Ban & Roda" },
-  { nama: "Enkei Wheels", kategori: "Ban & Roda" },
-  { nama: "RAYS Wheels", kategori: "Ban & Roda" },
-  { nama: "Rotiform", kategori: "Ban & Roda" },
-
-  // Komponen & Performa Mesin
-  { nama: "Brembo", kategori: "Performa & Komponen Mobil" },
-  { nama: "AP Racing", kategori: "Performa & Komponen Mobil" },
-  { nama: "Endless Brakes", kategori: "Performa & Komponen Mobil" },
-  { nama: "Akrapovič", kategori: "Performa & Komponen Mobil" },
-  { nama: "K&N Filters", kategori: "Performa & Komponen Mobil" },
-  { nama: "HKS", kategori: "Performa & Komponen Mobil" },
-  { nama: "KW Suspensions", kategori: "Performa & Komponen Mobil" },
-  { nama: "Öhlins", kategori: "Performa & Komponen Mobil" },
-  { nama: "Bilstein", kategori: "Performa & Komponen Mobil" },
-  { nama: "Eibach", kategori: "Performa & Komponen Mobil" },
-  { nama: "Bosch", kategori: "Performa & Komponen Mobil" },
-  { nama: "NGK Spark Plugs", kategori: "Performa & Komponen Mobil" },
-  { nama: "Denso", kategori: "Performa & Komponen Mobil" },
-  { nama: "Garrett Motion", kategori: "Performa & Komponen Mobil" },
-  { nama: "BorgWarner", kategori: "Performa & Komponen Mobil" },
-  { nama: "ZF Group", kategori: "Performa & Komponen Mobil" },
-
-  // Perlengkapan & Keselamatan Balap
-  { nama: "Sparco", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "OMP Racing", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Alpinestars", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Recaro", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Sabelt", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Bell Helmets", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Arai Helmets", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Schuberth", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Stilo Helmets", kategori: "Safety & Perlengkapan Balap" },
-  { nama: "Stand21", kategori: "Safety & Perlengkapan Balap" },
-
-  // Jam Tangan & Timing
-  { nama: "Tag Heuer", kategori: "Jam Tangan & Timing" },
-  { nama: "Rolex", kategori: "Jam Tangan & Timing" },
-  { nama: "Richard Mille", kategori: "Jam Tangan & Timing" },
-  { nama: "Casio Edifice", kategori: "Jam Tangan & Timing" },
-  { nama: "Tissot", kategori: "Jam Tangan & Timing" },
-  { nama: "IWC Schaffhausen", kategori: "Jam Tangan & Timing" },
-  { nama: "Girard-Perregaux", kategori: "Jam Tangan & Timing" },
-  { nama: "H. Moser & Cie.", kategori: "Jam Tangan & Timing" },
-  { nama: "Rebellion Timepieces", kategori: "Jam Tangan & Timing" },
-
-  // Teknologi, Cloud & Software
-  { nama: "Oracle", kategori: "Teknologi & Cloud Services" },
-  { nama: "SAP", kategori: "Teknologi & Cloud Services" },
-  { nama: "Microsoft", kategori: "Teknologi & Cloud Services" },
-  { nama: "Amazon Web Services (AWS)", kategori: "Teknologi & Cloud Services" },
-  { nama: "Google Cloud", kategori: "Teknologi & Cloud Services" },
-  { nama: "Salesforce", kategori: "Teknologi & Cloud Services" },
-  { nama: "CrowdStrike", kategori: "Teknologi & Cloud Services" },
-  { nama: "Darktrace", kategori: "Teknologi & Cloud Services" },
-  { nama: "Splunk", kategori: "Teknologi & Cloud Services" },
-  { nama: "ServiceNow", kategori: "Teknologi & Cloud Services" },
-  { nama: "Cognizant", kategori: "Teknologi & Cloud Services" },
-  { nama: "NTT Data", kategori: "Teknologi & Cloud Services" },
-  { nama: "DXC Technology", kategori: "Teknologi & Cloud Services" },
-
-  // Hardware, Chipset & Audio
-  { nama: "HP (Hewlett-Packard)", kategori: "Hardware & Elektronik" },
-  { nama: "Dell Technologies", kategori: "Hardware & Elektronik" },
-  { nama: "Lenovo", kategori: "Hardware & Elektronik" },
-  { nama: "Qualcomm", kategori: "Hardware & Elektronik" },
-  { nama: "AMD", kategori: "Hardware & Elektronik" },
-  { nama: "Intel", kategori: "Hardware & Elektronik" },
-  { nama: "Nvidia", kategori: "Hardware & Elektronik" },
-  { nama: "Bose", kategori: "Hardware & Elektronik" },
-  { nama: "Bang & Olufsen", kategori: "Hardware & Elektronik" },
-  { nama: "JBL", kategori: "Hardware & Elektronik" },
-
-  // Telekomunikasi
-  { nama: "Vodafone", kategori: "Telekomunikasi" },
-  { nama: "AT&T", kategori: "Telekomunikasi" },
-  { nama: "Verizon", kategori: "Telekomunikasi" },
-  { nama: "T-Mobile", kategori: "Telekomunikasi" },
-  { nama: "Singtel", kategori: "Telekomunikasi" },
-  { nama: "America Movil / Telcel", kategori: "Telekomunikasi" },
-
-  // Logistik & Transportasi
-  { nama: "DHL", kategori: "Logistik & Transportasi" },
-  { nama: "FedEx", kategori: "Logistik & Transportasi" },
-  { nama: "UPS", kategori: "Logistik & Transportasi" },
-  { nama: "DP World", kategori: "Logistik & Transportasi" },
-  { nama: "Emirates", kategori: "Logistik & Transportasi" },
-  { nama: "Qatar Airways", kategori: "Logistik & Transportasi" },
-  { nama: "Etihad Airways", kategori: "Logistik & Transportasi" },
-  { nama: "Singapore Airlines", kategori: "Logistik & Transportasi" },
-  { nama: "Lufthansa", kategori: "Logistik & Transportasi" },
-
-  // Fashion & Gaya Hidup
-  { nama: "Puma", kategori: "Fashion & Pakaian" },
-  { nama: "Adidas", kategori: "Fashion & Pakaian" },
-  { nama: "Ray-Ban", kategori: "Fashion & Pakaian" },
-  { nama: "Oakley", kategori: "Fashion & Pakaian" },
-  { nama: "Tommy Hilfiger", kategori: "Fashion & Pakaian" },
-  { nama: "Hugo Boss", kategori: "Fashion & Pakaian" },
-  { nama: "Giorgio Armani", kategori: "Fashion & Pakaian" },
-  { nama: "Jack & Jones", kategori: "Fashion & Pakaian" },
-
-  // Perbankan, Keuangan & Asuransi
-  { nama: "Santander", kategori: "Perbankan & Keuangan" },
-  { nama: "UBS", kategori: "Perbankan & Keuangan" },
-  { nama: "Mastercard", kategori: "Perbankan & Keuangan" },
-  { nama: "Visa", kategori: "Perbankan & Keuangan" },
-  { nama: "American Express", kategori: "Perbankan & Keuangan" },
-  { nama: "Allianz", kategori: "Perbankan & Keuangan" },
-  { nama: "Generali", kategori: "Perbankan & Keuangan" },
-  { nama: "Julius Baer", kategori: "Perbankan & Keuangan" },
-
-  // Kripto & Web3
-  { nama: "Crypto.com", kategori: "Fintech & Kripto" },
-  { nama: "Binance", kategori: "Fintech & Kripto" },
-  { nama: "Bybit", kategori: "Fintech & Kripto" },
-  { nama: "OKX", kategori: "Fintech & Kripto" },
-  { nama: "Tezos", kategori: "Fintech & Kripto" },
-  { nama: "Sui Network", kategori: "Fintech & Kripto" },
-
-  // Gaming & Sim Racing
-  { nama: "Fanatec", kategori: "Gaming & Sim Racing" },
-  { nama: "Thrustmaster", kategori: "Gaming & Sim Racing" },
-  { nama: "Logitech G", kategori: "Gaming & Sim Racing" },
-  { nama: "Razer", kategori: "Gaming & Sim Racing" },
-  { nama: "PlayStation", kategori: "Gaming & Sim Racing" },
-  { nama: "EA Sports", kategori: "Gaming & Sim Racing" },
-  { nama: "iRacing", kategori: "Gaming & Sim Racing" },
-  { nama: "Moza Racing", kategori: "Gaming & Sim Racing" },
-  { nama: "Simucube", kategori: "Gaming & Sim Racing" },
-  { nama: "Assetto Corsa", kategori: "Gaming & Sim Racing" }
+const SPONSOR_BRANDS = [
+    'Bank Mandiri Pro', 'Specs Sports', 'Hydro Coco', 'Indomaret VC',
+    'Gillette Power', 'Red Bull Volleyball', 'Mizuno Indonesia', 'Mikasa Sports',
+    'Telkomsel Halo', 'Pertamina Turbo', 'Kratingdaesh', 'Pocari Sweat'
 ];
+
+const OBJECTIVE_POOL = [
+    { desc: 'Finis 3 Besar Liga', evaluate: (rank, wins, sets) => rank <= 3 },
+    { desc: 'Finis 5 Besar Liga', evaluate: (rank, wins, sets) => rank <= 5 },
+    { desc: 'Menangkan 7 Match', evaluate: (rank, wins, sets) => wins >= 7 },
+    { desc: 'Menangkan 10 Match', evaluate: (rank, wins, sets) => wins >= 10 },
+    { desc: 'Raih Min. 20 Set Menang', evaluate: (rank, wins, sets) => sets >= 20 },
+    { desc: 'Hindari Degradasi', evaluate: (rank, wins, sets) => rank < 14 }
+];
+
+function generateRandomSponsor(type) {
+    const brand = SPONSOR_BRANDS[Math.floor(Math.random() * SPONSOR_BRANDS.length)];
+    const objective = OBJECTIVE_POOL[Math.floor(Math.random() * OBJECTIVE_POOL.length)];
+
+    let fee = 500000;
+    if (type === 'primary') fee = 1500000 + Math.floor(Math.random() * 500000);
+    if (type === 'secondary') fee = 800000 + Math.floor(Math.random() * 300000);
+    if (type === 'extra') fee = 400000 + Math.floor(Math.random() * 200000);
+
+    return {
+        type: type,
+        name: brand,
+        fee: fee,
+        goal: objective.desc,
+        evaluator: objective.evaluate,
+        claimed: false
+    };
+}
+
+function generateAllSponsors() {
+    return {
+        primary: generateRandomSponsor('primary'),
+        secondary: generateRandomSponsor('secondary'),
+        extra: generateRandomSponsor('extra')
+    };
+}
