@@ -1,7 +1,7 @@
 let gameState = {
     teamName: '',
     managerName: '',
-    budget: 2000000,
+    budget: 500000,
     currentWeek: 1,
     maxWeeks: 14,
     userLeagueTier: 5,
@@ -12,7 +12,10 @@ let gameState = {
     schedules: [],
     inboxMessages: [],
     transferNews: [],
-    sponsors: {}
+    sponsors: {
+        available: generateSponsorOptions(5),
+        active: { primary: null, secondary: null, extra: null }
+    }
 };
 
 let currentNego = null;
@@ -68,9 +71,15 @@ function handleRegistration(e) {
 
     gameState.teamName = teamName;
     gameState.managerName = managerName;
-    gameState.budget = 2000000;
+    gameState.budget = 500000;
     gameState.currentWeek = 1;
     gameState.userLeagueTier = 5;
+
+    // Reset Sponsor Pool
+    gameState.sponsors = {
+        available: generateSponsorOptions(5),
+        active: { primary: null, secondary: null, extra: null }
+    };
 
     // Generate Default Roster: 9 players (8 local, 1 foreign) Tier H - F
     gameState.roster = [];
@@ -356,66 +365,67 @@ function executeSwap(candidateId) {
     renderSquadUI();
 }
 
-// State pilihan sponsor di game kamu
-let availableSponsors = generateSponsorOptions(5);
-let activeSponsors = {
-  primary: null,
-  secondary: null,
-  extra: null
-};
+// SPONSOR SYSTEM
+function renderSponsorsUI() {
+    const types = ['primary', 'secondary', 'extra'];
 
-// Fungsi Render UI Pilihan Sponsor
-function renderSponsors() {
-  const types = ['primary', 'secondary', 'extra'];
+    types.forEach(type => {
+        const cardEl = document.getElementById(`sponsor-card-${type}`);
+        if (!cardEl) return;
 
-  types.forEach(type => {
-    const container = document.getElementById(`${type}-sponsor-container`);
-    if (!container) return;
+        const active = gameState.sponsors.active[type];
+        if (active) {
+            cardEl.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">${type} SPONSOR</span>
+                    <span class="text-xs font-bold text-emerald-400">AKTIF</span>
+                </div>
+                <div>
+                    <h4 class="font-bold text-white text-base">${active.name}</h4>
+                    <p class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> ${active.goal}</p>
+                </div>
+                <div class="bg-slate-950 p-3 rounded-xl flex justify-between items-center text-xs">
+                    <span class="text-slate-400">Bonus Musim:</span>
+                    <b class="text-emerald-400 font-mono">${formatRupiah(active.fee)}</b>
+                </div>
+            `;
+        } else {
+            const options = gameState.sponsors.available[type] || [];
+            let optionsHTML = options.map(s => `
+                <div class="bg-slate-950 p-3 rounded-xl space-y-2 border border-slate-800 hover:border-slate-700 transition">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-white text-xs">${s.name}</span>
+                        <span class="text-emerald-400 font-mono text-xs font-bold">${formatRupiah(s.fee)}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400"><i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> ${s.goal}</p>
+                    <button onclick="signSponsorContract('${type}', '${s.id}')" class="w-full py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-[11px] transition">
+                        Tanda Tangan Kontrak
+                    </button>
+                </div>
+            `).join('');
 
-    container.innerHTML = '';
-
-    // Jika sponsor jenis ini sudah ditandatangani
-    if (activeSponsors[type]) {
-      const active = activeSponsors[type];
-      container.innerHTML = `
-        <div class="sponsor-card active-sponsor">
-          <span class="status-badge">Kontrak Aktif</span>
-          <h3>${active.name}</h3>
-          <p><strong>Target:</strong> ${active.goal}</p>
-          <p><strong>Nilai Kontrak:</strong> Rp ${active.fee.toLocaleString('id-ID')}</p>
-        </div>
-      `;
-      return;
-    }
-
-    // Tampilkan 5 opsi pilihan jika belum dipilih
-    const optionsList = availableSponsors[type] || [];
-    
-    optionsList.forEach((sponsor) => {
-      const card = document.createElement('div');
-      card.className = 'sponsor-card-option';
-      card.innerHTML = `
-        <h3>${sponsor.name}</h3>
-        <p><strong>Target:</strong> ${sponsor.goal}</p>
-        <p><strong>Nilai Kontrak:</strong> Rp ${sponsor.fee.toLocaleString('id-ID')}</p>
-        <button onclick="signSponsorContract('${type}', '${sponsor.id}')">Tanda Tangan Kontrak</button>
-      `;
-      container.appendChild(card);
+            cardEl.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">${type} SPONSOR</span>
+                    <span class="text-xs font-bold text-slate-500">Pilih Kontrak</span>
+                </div>
+                <div class="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                    ${optionsHTML}
+                </div>
+            `;
+        }
     });
-  });
 }
 
-// Fungsi untuk Memilih/Menandatangani Kontrak Sponsor
 function signSponsorContract(type, sponsorId) {
-  const selected = availableSponsors[type].find(s => s.id === sponsorId);
-  if (selected) {
-    activeSponsors[type] = selected;
-    
-    // Opsional: langsung tambahkan uang nilai kontrak ke Kas Klub
-    // clubCash += selected.fee; 
-    
-    renderSponsors();
-  }
+    const selected = gameState.sponsors.available[type].find(s => s.id === sponsorId);
+    if (selected) {
+        gameState.sponsors.active[type] = selected;
+        gameState.budget += selected.fee;
+        updateHeaderUI();
+        renderSponsorsUI();
+        showAlert('Sponsor Ditandatangani!', `Klub Anda menerima dana sponsorship sebesar ${formatRupiah(selected.fee)} dari ${selected.name}.`, 'fa-handshake');
+    }
 }
 
 // STANDINGS RENDER
@@ -505,7 +515,7 @@ function renderMatchUI() {
 
     const btnStart = document.getElementById('btn-start-match');
     if (currentSchedule.matches[0].played) {
-        btnStart.innerHTML = `<i class="fa-solid fa-arrow-right mr-2"></i> Lanjut ke Pekan ${gameState.currentWeek + 1} ->`;
+        btnStart.innerHTML = `<i class="fa-solid fa-arrow-right mr-2"></i> Lanjut ke Pekan ${gameState.currentWeek + 1}`;
     } else {
         btnStart.innerHTML = `<i class="fa-solid fa-play mr-2"></i> Simulasi Semua Pertandingan`;
     }
@@ -517,7 +527,6 @@ function handleMatchButtonClick() {
         if (gameState.currentWeek < gameState.maxWeeks) {
             gameState.currentWeek++;
             
-            // Clear match commentary log for the new match week
             const logEl = document.getElementById('match-commentary-log');
             if (logEl) logEl.innerHTML = '<p class="text-slate-500 italic text-center py-10">Klik "Simulasi Semua Pertandingan" untuk memulai laga pekan ini.</p>';
 
