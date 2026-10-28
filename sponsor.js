@@ -72,7 +72,7 @@ function generateRandomSponsor(type) {
   };
 }
 
-// Menghasilkan 5 pilihan sponsor untuk masing-masing tipe
+// Menghasilkan 5 pilihan sponsor unik untuk masing-masing tipe
 function generateSponsorOptions(countPerType = 5) {
   const options = {
     primary: [],
@@ -84,7 +84,6 @@ function generateSponsorOptions(countPerType = 5) {
     const usedBrands = new Set();
     while (options[type].length < countPerType) {
       const sponsor = generateRandomSponsor(type);
-      // Memastikan brand tidak duplikat dalam satu opsi tipe
       if (!usedBrands.has(sponsor.name)) {
         usedBrands.add(sponsor.name);
         options[type].push(sponsor);
