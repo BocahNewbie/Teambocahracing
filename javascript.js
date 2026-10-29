@@ -333,58 +333,74 @@ function toggleStarter(playerId) {
 }
 
 function openSwapModal(starterId) {
-    const starter = gameState.roster.find(p => p.id === starterId);
-    if (!starter) return;
+  const starter = gameState.roster.find(p => p.id === starterId);
+  if (!starter) return;
+  currentSwapStarterId = starterId;
 
-    currentSwapStarterId = starterId;
-    const starterCard = document.getElementById('swap-starter-card');
-    
-    starterCard.innerHTML = `
-        <div class="flex justify-between items-center">
-            <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded">PEMAIN UTAMA KELUAR</span>
-            <span class="text-xs font-bold text-emerald-400 font-mono">OVR ${getEffectiveOvr(starter)} (${starter.ovr})</span>
+  const starterCard = document.getElementById('swap-starter-card');
+  starterCard.innerHTML = `
+    <div class="flex justify-between items-center">
+      <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded">PEMAIN UTAMA KELUAR</span>
+      <span class="text-xs font-bold text-emerald-400 font-mono">OVR ${getEffectiveOvr(starter)} (${starter.ovr})</span>
+    </div>
+    <div class="flex items-center justify-between mt-1">
+      <div>
+        <h4 class="font-bold text-white text-sm">${starter.flag} ${starter.name}</h4>
+        <p class="text-xs text-slate-400">${starter.position} • Stamina: ${starter.stamina}%</p>
+      </div>
+      <div class="grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
+        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SPK</span><b>${starter.skills.spike}</b></div>
+        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">BLK</span><b>${starter.skills.block}</b></div>
+        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SRV</span><b>${starter.skills.serve}</b></div>
+        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">RCV</span><b>${starter.skills.receive}</b></div>
+      </div>
+    </div>
+  `;
+
+  const benched = gameState.roster.filter(p => !gameState.startingLineupIds.includes(p.id));
+  const listEl = document.getElementById('swap-candidates-list');
+  listEl.innerHTML = '';
+
+  if (benched.length === 0) {
+    listEl.innerHTML = `<p class="text-center text-xs text-slate-500 py-4 italic">Tidak ada pemain cadangan yang tersedia.</p>`;
+  } else {
+    // Urutkan kandidat: Utamakan yang posisinya cocok lebih dulu
+    benched.sort((a, b) => {
+      const aMatch = a.position === starter.position ? 1 : 0;
+      const bMatch = b.position === starter.position ? 1 : 0;
+      return bMatch - aMatch;
+    });
+
+    benched.forEach(benchP => {
+      const diffOvr = getEffectiveOvr(benchP) - getEffectiveOvr(starter);
+      const isPosMatch = benchP.position === starter.position;
+
+      // Label Posisi Cocok / Beda
+      const posBadge = isPosMatch 
+        ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">COCOK</span>`
+        : `<span class="bg-slate-700 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">BEDA POSISI</span>`;
+
+      const card = document.createElement('div');
+      card.className = `bg-slate-800 border ${isPosMatch ? 'border-emerald-500/40' : 'border-slate-700'} p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-blue-500 transition`;
+      card.innerHTML = `
+        <div>
+          <h5 class="font-bold text-white text-xs flex items-center gap-1">
+            ${benchP.flag} ${benchP.name} 
+            <span class="text-[10px] font-normal border px-1 rounded ${TIERS[benchP.tier].color}">${benchP.tier}</span>
+            ${posBadge}
+          </h5>
+          <p class="text-[11px] text-slate-400 mt-0.5">${benchP.position} • Stamina: <b class="text-emerald-400">${benchP.stamina}%</b></p>
         </div>
-        <div class="flex items-center justify-between mt-1">
-            <div>
-                <h4 class="font-bold text-white text-sm">${starter.flag} ${starter.name}</h4>
-                <p class="text-xs text-slate-400">${starter.position} • Stamina: ${starter.stamina}%</p>
-            </div>
-            <div class="grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
-                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SPK</span><b>${starter.skills.spike}</b></div>
-                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">BLK</span><b>${starter.skills.block}</b></div>
-                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SRV</span><b>${starter.skills.serve}</b></div>
-                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">RCV</span><b>${starter.skills.receive}</b></div>
-            </div>
+        <div class="flex items-center gap-3 text-xs">
+          <span class="font-bold ${diffOvr >= 0 ? 'text-emerald-400' : 'text-rose-400'}">OVR ${getEffectiveOvr(benchP)} (${diffOvr >= 0 ? '+' + diffOvr : diffOvr})</span>
+          <button onclick="executeSwap('${benchP.id}')" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Tukar</button>
         </div>
-    `;
+      `;
+      listEl.appendChild(card);
+    });
+  }
 
-    const benched = gameState.roster.filter(p => !gameState.startingLineupIds.includes(p.id));
-    const listEl = document.getElementById('swap-candidates-list');
-    listEl.innerHTML = '';
-
-    if (benched.length === 0) {
-        listEl.innerHTML = `<p class="text-center text-xs text-slate-500 py-4 italic">Tidak ada pemain cadangan yang tersedia.</p>`;
-    } else {
-        benched.forEach(benchP => {
-            const diffOvr = getEffectiveOvr(benchP) - getEffectiveOvr(starter);
-            const card = document.createElement('div');
-            card.className = 'bg-slate-800 border border-slate-700 p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-blue-500 transition';
-            
-            card.innerHTML = `
-                <div>
-                    <h5 class="font-bold text-white text-xs">${benchP.flag} ${benchP.name} <span class="text-[10px] font-normal border px-1 rounded ${TIERS[benchP.tier].color}">${benchP.tier}</span></h5>
-                    <p class="text-[11px] text-slate-400 mt-0.5">${benchP.position} • Stamina: <b class="text-emerald-400">${benchP.stamina}%</b></p>
-                </div>
-                <div class="flex items-center gap-3 text-xs">
-                    <span class="font-bold ${diffOvr >= 0 ? 'text-emerald-400' : 'text-rose-400'}">OVR ${getEffectiveOvr(benchP)} (${diffOvr >= 0 ? '+' + diffOvr : diffOvr})</span>
-                    <button onclick="executeSwap('${benchP.id}')" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Tukar</button>
-                </div>
-            `;
-            listEl.appendChild(card);
-        });
-    }
-
-    document.getElementById('modal-swap-player').classList.remove('hidden');
+  document.getElementById('modal-swap-player').classList.remove('hidden');
 }
 
 function executeSwap(candidateId) {
