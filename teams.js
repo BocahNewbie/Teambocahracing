@@ -6,55 +6,65 @@ const LEAGUE_TIERS = {
     5: { name: "Liga 5 (Liga Voli Amatir)", short: "Liga 5" }
 };
 
-// Database 125 Nama Tim Voli Indonesia & Daerah
-const AI_TEAM_POOL = [
-    // Jawa Barat & Banten
-    'Bandung BJB Pakuan', 'Bogor LavAni', 'Tangerang Volley Club', 'Ciamis Galuh Spikers', 'Tasikmalaya Resik VC',
-    'Cirebon Sunan Spike', 'Garut Intan Volley', 'Sukabumi Wave VC', 'Depok City Spikers', 'Bekasi Patriot VC',
-    'Indramayu Mango VC', 'Sumedang Manglayang', 'Kunangan Windu VC', 'Majalengka Spikers', 'Subang Jaya VC',
-    'Cianjur Tirta VC', 'Purwakarta Istimewa', 'Karawang Spikers', 'Pangandaran Ocean VC', 'Banten Titan VC',
-    'Serang Royal Volleyball', 'Cilegon Steel VC', 'Pandeglang Peak VC', 'Lebak Wild Spikers', 'Rancaekek Volley',
+// Database Komponen Nama Tim: First Name (Kota/Wilayah/Entitas) & Last Name (Julukan/Identitas)
+const TEAM_NAME_PARTS = {
+    firstNames: [
+        'Bandung', 'Bogor', 'Tangerang', 'Ciamis', 'Tasikmalaya', 'Cirebon', 'Garut', 'Sukabumi',
+        'Depok', 'Bekasi', 'Indramayu', 'Sumedang', 'Majalengka', 'Subang', 'Cianjur', 'Purwakarta',
+        'Karawang', 'Pangandaran', 'Serang', 'Cilegon', 'Pandeglang', 'Lebak', 'Jakarta', 'Kudus',
+        'Semarang', 'Surakarta', 'Yogyakarta', 'Sleman', 'Magelang', 'Banyumas', 'Purwokerto', 'Pekalongan',
+        'Tegal', 'Pati', 'Jepara', 'Cilacap', 'Wonogiri', 'Klaten', 'Surabaya', 'Malang',
+        'Gresik', 'Sidoarjo', 'Banyuwangi', 'Kediri', 'Jember', 'Madiun', 'Probolinggo', 'Pasuruan',
+        'Blitar', 'Tuban', 'Lamongan', 'Mojokerto', 'Bojonegoro', 'Denpasar', 'Singaraja', 'Gianyar',
+        'Palembang', 'Medan', 'Padang', 'Lampung', 'Pekanbaru', 'Batam', 'Aceh', 'Jambi',
+        'Pontianak', 'Samarinda', 'Balikpapan', 'Banjarmasin', 'Makassar', 'Manado', 'Palu', 'Jayapura',
+        'Ambon', 'Mataram', 'Kupang', 'Siliwangi', 'Bhineka', 'Garuda', 'Patriot', 'Nusantara'
+    ],
+    lastNames: [
+        'Spikers', 'Volley', 'Volley Club', 'Wave', 'Patriot', 'Titan', 'Steel', 'Peak',
+        'Presisi', 'Fastron', 'Badak', 'Samator', 'Blitz', 'Delta', 'Hawks', 'Smashers',
+        'Heroes', 'Thunder', 'Borneo', 'Tadulako', 'Phinisi', 'Pearls', 'Spices', 'Eagle',
+        'Electric', 'Express', 'United', 'Force', 'Pioneers', 'Knights', 'Strikers', 'Storm',
+        'Bank', 'Monster Energy', 'Block', 'Freeport', 'Kopi'
+    ]
+};
 
-    // DKI Jakarta & Jawa Tengah
-    'Jakarta Bhayangkara Presisi', 'Jakarta STIN BIN', 'Jakarta Pertamina Fastron', 'Jakarta Garuda Jaya', 'Jakarta Popivo',
-    'Kudus Sukun Badak', 'Semarang Bank Jateng', 'Surakarta Spikers', 'Yogyakarta Yuso', 'Sleman Sembada VC',
-    'Magelang Tidar VC', 'Banyumas Satria VC', 'Purwokerto Crown', 'Pekalongan Batik VC', 'Tegal Brebes Spikers',
-    'Pati Muria Volleyball', 'Jepara Ukir VC', 'Cilacap Ocean Spike', 'Wonogiri Mountain VC', 'Klaten Shining Spikers',
+// Set untuk melacak agar nama tim yang dibuat tidak duplikat
+const generatedTeamNames = new Set();
 
-    // Jawa Timur & Bali
-    'Surabaya Samator', 'Malang Blitz VC', 'Gresik Petrokimia', 'Sidoarjo Delta Volley', 'Banyuwangi Blambangan',
-    'Kediri Simpang Lima', 'Jember Fashion Spikers', 'Madiun Wilis VC', 'Probolinggo Bromo VC', 'Pasuruan Bromo Spikers',
-    'Blitar Patria VC', 'Tuban Coast Volleyball', 'Lamongan Sunan Spike', 'Mojokerto Mojopahit VC', 'Bojonegoro Angling Dharma',
-    'Bali Volleyball Club', 'Denpasar Spikers', 'Singaraja Waves VC', 'Gianyar Dewata VC', 'Tabanan Tanah Lot VC',
+/**
+ * Membuat nama tim unik dengan format First Name + Last Name
+ */
+function generateUniqueTeamName() {
+    let attempts = 0;
+    while (attempts < 1000) {
+        const firstName = TEAM_NAME_PARTS.firstNames[Math.floor(Math.random() * TEAM_NAME_PARTS.firstNames.length)];
+        const lastName = TEAM_NAME_PARTS.lastNames[Math.floor(Math.random() * TEAM_NAME_PARTS.lastNames.length)];
+        const fullName = `${firstName} ${lastName}`;
 
-    // Sumatera
-    'Palembang Bank Sumsel Babel', 'Medan Hawks VC', 'Padang Smashers', 'Bandarlampung Blitz', 'Pekanbaru Heroes',
-    'Batam Island VC', 'Acheh Rencong VC', 'Jambi Angso Duo', 'Bengkulu Rafflesia VC', 'Bangka Belitung Spikers',
-    'Palembang Musi Spike', 'Duri Oil Spikers', 'Pematangsiantar VC', 'Bukittinggi Singgalang', 'Pangkalpinang Wave',
+        if (!generatedTeamNames.has(fullName)) {
+            generatedTeamNames.add(fullName);
+            return fullName;
+        }
+        attempts++;
+    }
+    
+    // Fallback jika kombinasi acak habis
+    const fallbackName = `Volley Team ${generatedTeamNames.size + 1}`;
+    generatedTeamNames.add(fallbackName);
+    return fallbackName;
+}
 
-    // Kalimantan & Sulawesi
-    'Pontianak Spikers', 'Samarinda Thunder', 'Balikpapan Spikers', 'Banjarmasin Borneo VC', 'Palangkaraya Kahayan',
-    'Tarakan Sebatik VC', 'Singkawang Tiger VC', 'Makassar Spike Club', 'Manado Waves VC', 'Palu Tadulako VC',
-    'Kendari Phinisi VC', 'Gorontalo Limboto', 'Mamuju Western VC', 'Bitung Port Spikers', 'Tomohon Flower VC',
-
-    // Nusa Tenggara, Maluku & Papua
-    'Mataram Spikers', 'Kupang Waves VC', 'Jayapura Black Pearls', 'Ambon Bay VC', 'Ternate Spice VC',
-    'Sorong Bird Head VC', 'Merauke East Spikers', 'Timika Gold Spikers', 'Labuan Bajo Dragon VC', 'Ende Flores VC',
-    'Biak Island Volleyball', 'Manokwari Arfak VC', 'Sumbawa Eagle VC', 'Sumba Pasola Spikers', 'Banda Neira VC',
-
-    // Instansi, BUMN & Klub Klasik
-    'Gadjah Mada Volleyball', 'Siliwangi Spike Club', 'Diponegoro Spikers', 'Padjadjaran Volley', 'Airlangga Spikers',
-    'Brawijaya VC', 'Udayana Spikers', 'Kaltim Prima VC', 'Freeport Spikers', 'Bukit Asam VC',
-    'Inalum Volley Club', 'Pindad Volley Club', 'PUPR Spikers Club', 'PLN Electric VC', 'Telkom Indonesia VC',
-    'Pos Indonesia Volley', 'Kereta Api Spikers', 'Angkasa Pura VC', 'Semen Indonesia VC', 'Pupuk Kaltim VC'
-];
-
+/**
+ * Membuat struktur liga dengan nama tim yang dijamin tidak duplikat
+ */
 function generateLeagueStructure(userTeamName) {
     const leagues = {};
-    let poolCopy = [...AI_TEAM_POOL];
-
-    // Acak urutan tim agar variatif setiap kali main game baru
-    poolCopy.sort(() => Math.random() - 0.5);
+    generatedTeamNames.clear(); // Reset nama tim saat membuat liga baru
+    
+    if (userTeamName) {
+        generatedTeamNames.add(userTeamName); // Daftarkan nama tim user agar AI tidak menggunakan nama yang sama
+    }
 
     for (let tier = 1; tier <= 5; tier++) {
         const teamsInLeague = [];
@@ -71,11 +81,12 @@ function generateLeagueStructure(userTeamName) {
 
         const needed = tier === 5 ? 14 : 15;
         for (let i = 0; i < needed; i++) {
-            const name = poolCopy.shift() || `Klub Voli ${tier}-${i + 1}`;
+            const teamName = generateUniqueTeamName();
             const baseOvrByTier = 110 - (tier * 12);
+            
             teamsInLeague.push({
                 id: `ai_team_t${tier}_${i}`,
-                name: name,
+                name: teamName,
                 isUser: false,
                 played: 0, won: 0, lost: 0, setW: 0, setL: 0, points: 0,
                 avgOvr: Math.max(30, Math.floor(Math.random() * 15) + baseOvrByTier)
