@@ -999,43 +999,79 @@ function processCpuTransfers() {
 
 // TRANSFER MARKET & NEWS
 function renderTransferMarket() {
-    const container = document.getElementById('market-players-grid');
-    if (!container) return;
-    container.innerHTML = '';
+  const container = document.getElementById('market-players-grid');
+  if (!container) return;
+  container.innerHTML = '';
 
-    const filterPos = document.getElementById('market-filter-pos').value;
-    const filtered = gameState.marketPlayers.filter(p => filterPos === 'ALL' || p.position === filterPos);
+  const posFilter = document.getElementById('market-pos-filter')?.value || 'ALL';
+  const sortFilter = document.getElementById('market-sort-filter')?.value || 'none';
 
-    filtered.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between space-y-3 hover:border-slate-700 transition';
-        card.innerHTML = `
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded border ${TIERS[p.tier].color}">${p.tier}</span>
-                    <span class="text-xs font-bold text-amber-400">OVR ${p.ovr}</span>
-                </div>
-                <h4 class="font-bold text-white text-sm">${p.flag} ${p.name}</h4>
-                <p class="text-xs text-slate-400 mt-0.5">${p.position} • ${p.country}</p>
-                <p class="text-[11px] text-slate-500 mt-1">${p.clubName ? `Klub: ${p.clubName}` : 'Status: Free Agent'}</p>
-            </div>
+  // Filter berdasarkan posisi
+  let filtered = gameState.marketPlayers.filter(p => {
+    if (posFilter !== 'ALL' && p.position !== posFilter) return false;
+    return true;
+  });
 
-            <div class="bg-slate-950 p-2.5 rounded-xl space-y-1 text-xs">
-                <div class="flex justify-between"><span class="text-slate-400">Gaji Ekspektasi:</span><b class="text-emerald-400">${formatRupiah(p.salary)}/m</b></div>
-                <div class="flex justify-between"><span class="text-slate-400">Nilai Transfer:</span><b class="text-amber-300">${formatRupiah(p.value)}</b></div>
-            </div>
+  // Urutkan data berdasarkan filter yang dipilih
+  filtered.sort((a, b) => {
+    switch (sortFilter) {
+      case 'ovr-desc':
+        return b.ovr - a.ovr;
+      case 'ovr-asc':
+        return a.ovr - b.ovr;
+      case 'price-desc':
+        return b.value - a.value;
+      case 'price-asc':
+        return a.value - b.value;
+      case 'salary-desc':
+        return b.salary - a.salary;
+      case 'salary-asc':
+        return a.salary - b.salary;
+      default:
+        return 0;
+    }
+  });
 
-            ${p.lockoutMatches > 0 ? 
-                `<button disabled class="w-full py-2 bg-slate-800 border border-rose-500/30 text-rose-400 font-bold rounded-xl text-xs cursor-not-allowed">
-                    🔒 Menolak Bicara (${p.lockoutMatches} Match)
-                </button>` :
-                `<button onclick="startPlayerNegotiation('${p.id}', false)" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition">
-                    <i class="fa-solid fa-handshake mr-1"></i> Rekrut / Nego
-                </button>`
-            }
-        `;
-        container.appendChild(card);
-    });
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan filter.</div>`;
+    return;
+  }
+
+  // Render kartu pemain
+  filtered.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-500 transition shadow-lg';
+    card.innerHTML = `
+      <div>
+        <div class="flex items-center justify-between">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${TIERS[p.tier].color}">${p.tier}</span>
+          <span class="text-xs font-mono font-bold text-amber-400">OVR ${p.ovr}</span>
+        </div>
+        <div class="mt-2">
+          <h4 class="font-bold text-white text-sm flex items-center gap-1.5">
+            <span>${p.flag}</span>
+            <span class="truncate">${p.name}</span>
+          </h4>
+          <p class="text-[11px] text-slate-400 mt-0.5">${p.position} • ${p.country}</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">${p.clubName ? 'Klub: ' + p.clubName : '<span class="text-emerald-400 font-semibold">Status: Free Agent</span>'}</p>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 border-t border-slate-700/50">
+        <div class="flex justify-between items-center text-[11px] mb-1">
+          <span class="text-slate-400">Gaji Ekspektasi:</span>
+          <span class="font-mono text-emerald-400 font-bold">${formatRupiah(p.salary)}/m</span>
+        </div>
+        <div class="flex justify-between items-center text-[11px] mb-3">
+          <span class="text-slate-400">Nilai Transfer:</span>
+          <span class="font-mono text-amber-300 font-bold">${formatRupiah(p.value)}</span>
+        </div>
+        <button onclick="openNegoModal('${p.id}')" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
+          <i class="fa-solid fa-handshake"></i> Rekrut / Nego
+        </button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
 }
 
 function addTransferNews(type, newsText) {
