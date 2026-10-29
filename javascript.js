@@ -1003,16 +1003,17 @@ function renderTransferMarket() {
   if (!container) return;
   container.innerHTML = '';
 
+  // 1. Ambil nilai dari kedua dropdown filter
   const posFilter = document.getElementById('market-pos-filter')?.value || 'ALL';
   const sortFilter = document.getElementById('market-sort-filter')?.value || 'none';
 
-  // Filter berdasarkan posisi
+  // 2. Filter berdasarkan Posisi (misal: Outside Hitter)
   let filtered = gameState.marketPlayers.filter(p => {
     if (posFilter !== 'ALL' && p.position !== posFilter) return false;
     return true;
   });
 
-  // Urutkan data berdasarkan filter yang dipilih
+  // 3. Urutkan hasil filter posisi berdasarkan parameter pilihan (misal: Gaji Tinggi ke Rendah)
   filtered.sort((a, b) => {
     switch (sortFilter) {
       case 'ovr-desc':
@@ -1024,7 +1025,7 @@ function renderTransferMarket() {
       case 'price-asc':
         return a.value - b.value;
       case 'salary-desc':
-        return b.salary - a.salary;
+        return b.salary - a.salary; // Gaji Tinggi ke Rendah
       case 'salary-asc':
         return a.salary - b.salary;
       default:
@@ -1032,19 +1033,20 @@ function renderTransferMarket() {
     }
   });
 
+  // 4. Jika hasil kombinasi kosong
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan filter.</div>`;
+    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria pencarian.</div>`;
     return;
   }
 
-  // Render kartu pemain
+  // 5. Render daftar pemain ke tampilan
   filtered.forEach(p => {
     const card = document.createElement('div');
     card.className = 'bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-500 transition shadow-lg';
     card.innerHTML = `
       <div>
         <div class="flex items-center justify-between">
-          <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${TIERS[p.tier].color}">${p.tier}</span>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${TIERS[p.tier]?.color || 'bg-slate-700'}">${p.tier}</span>
           <span class="text-xs font-mono font-bold text-amber-400">OVR ${p.ovr}</span>
         </div>
         <div class="mt-2">
