@@ -150,14 +150,49 @@ function generateLeagueSchedules() {
 }
 
 function generateMarketPool() {
-    gameState.marketPlayers = [];
-    for (let i = 0; i < 20; i++) {
-        const p = createRandomPlayer('mkt_p', ['E', 'D', 'C', 'B', 'A', 'S', 'SS']);
-        if (Math.random() > 0.5) {
-            p.clubName = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
+  gameState.marketPlayers = [];
+  
+  // Ambil semua nama klub dari seluruh kasta liga (Liga 1 - Liga 5)
+  let allClubs = [];
+  if (gameState.leagues) {
+    Object.values(gameState.leagues).forEach(tierTeams => {
+      tierTeams.forEach(team => {
+        // Abaikan tim milik user
+        if (!team.isUser) {
+          allClubs.push(team.name);
         }
-        gameState.marketPlayers.push(p);
+      });
+    });
+  }
+
+  // Jika daftar klub liga belum terbentuk, gunakan AI_TEAM_POOL sebagai cadangan
+  if (allClubs.length === 0 && typeof AI_TEAM_POOL !== 'undefined') {
+    allClubs = AI_TEAM_POOL;
+  }
+
+  const tiers = ['H', 'G', 'F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS'];
+  const totalPlayers = 300;
+
+  for (let i = 0; i < totalPlayers; i++) {
+    const randomTier = tiers[Math.floor(Math.random() * tiers.length)];
+    
+    // Distribusi Kebangsaan: ~70% Indonesia, ~30% Pemain Asing
+    const isLocal = Math.random() < 0.7;
+    const country = isLocal ? 'Indonesia' : null;
+
+    const p = createRandomPlayer(`mkt_p_${i}`, [randomTier], country);
+
+    // Distribusi Status: ~40% Free Agent (Tanpa Klub), ~60% Memiliki Klub dari Liga
+    const isFreeAgent = Math.random() < 0.4;
+
+    if (!isFreeAgent && allClubs.length > 0) {
+      p.clubName = allClubs[Math.floor(Math.random() * allClubs.length)];
+    } else {
+      p.clubName = null; // Status Free Agent
     }
+
+    gameState.marketPlayers.push(p);
+  }
 }
 
 // HEADER UI UPDATES
