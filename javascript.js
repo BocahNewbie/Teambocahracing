@@ -1,7 +1,7 @@
 let gameState = {
     teamName: '',
     managerName: '',
-    budget: 500000, // Budget awal disesuaikan ke Rp 500.000
+    budget: 500000,
     currentWeek: 1,
     maxWeeks: 14,
     userLeagueTier: 5,
@@ -75,13 +75,11 @@ function handleRegistration(e) {
     gameState.currentWeek = 1;
     gameState.userLeagueTier = 5;
 
-    // Reset Sponsor Pool
     gameState.sponsors = {
         available: generateSponsorOptions(5),
         active: { primary: null, secondary: null, extra: null }
     };
 
-    // Generate Default Roster: 9 players (8 local, 1 foreign) Tier H - F
     gameState.roster = [];
     const posAssignments = ['Outside Hitter', 'Middle Blocker', 'Opposite Hitter', 'Setter', 'Libero', 'Outside Hitter', 'Middle Blocker', 'Opposite Hitter', 'Setter'];
 
@@ -92,7 +90,6 @@ function handleRegistration(e) {
     }
 
     gameState.startingLineupIds = gameState.roster.slice(0, 6).map(p => p.id);
-
     gameState.leagues = generateLeagueStructure(gameState.teamName);
 
     generateMarketPool();
@@ -152,12 +149,10 @@ function generateLeagueSchedules() {
 function generateMarketPool() {
   gameState.marketPlayers = [];
   
-  // Ambil semua nama klub dari seluruh kasta liga (Liga 1 - Liga 5)
   let allClubs = [];
   if (gameState.leagues) {
     Object.values(gameState.leagues).forEach(tierTeams => {
       tierTeams.forEach(team => {
-        // Abaikan tim milik user
         if (!team.isUser) {
           allClubs.push(team.name);
         }
@@ -165,7 +160,6 @@ function generateMarketPool() {
     });
   }
 
-  // Jika daftar klub liga belum terbentuk, gunakan AI_TEAM_POOL sebagai cadangan
   if (allClubs.length === 0 && typeof AI_TEAM_POOL !== 'undefined') {
     allClubs = AI_TEAM_POOL;
   }
@@ -175,20 +169,16 @@ function generateMarketPool() {
 
   for (let i = 0; i < totalPlayers; i++) {
     const randomTier = tiers[Math.floor(Math.random() * tiers.length)];
-    
-    // Distribusi Kebangsaan: ~70% Indonesia, ~30% Pemain Asing
     const isLocal = Math.random() < 0.7;
     const country = isLocal ? 'Indonesia' : null;
 
     const p = createRandomPlayer(`mkt_p_${i}`, [randomTier], country);
-
-    // Distribusi Status: ~40% Free Agent (Tanpa Klub), ~60% Memiliki Klub dari Liga
     const isFreeAgent = Math.random() < 0.4;
 
     if (!isFreeAgent && allClubs.length > 0) {
       p.clubName = allClubs[Math.floor(Math.random() * allClubs.length)];
     } else {
-      p.clubName = null; // Status Free Agent
+      p.clubName = null;
     }
 
     gameState.marketPlayers.push(p);
@@ -364,7 +354,6 @@ function openSwapModal(starterId) {
   if (benched.length === 0) {
     listEl.innerHTML = `<p class="text-center text-xs text-slate-500 py-4 italic">Tidak ada pemain cadangan yang tersedia.</p>`;
   } else {
-    // Urutkan kandidat: Utamakan yang posisinya cocok lebih dulu
     benched.sort((a, b) => {
       const aMatch = a.position === starter.position ? 1 : 0;
       const bMatch = b.position === starter.position ? 1 : 0;
@@ -375,7 +364,6 @@ function openSwapModal(starterId) {
       const diffOvr = getEffectiveOvr(benchP) - getEffectiveOvr(starter);
       const isPosMatch = benchP.position === starter.position;
 
-      // Label Posisi Cocok / Beda
       const posBadge = isPosMatch 
         ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">COCOK</span>`
         : `<span class="bg-slate-700 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">BEDA POSISI</span>`;
@@ -486,7 +474,6 @@ function signSponsorContract(type, sponsorId) {
     if (selected) {
         gameState.sponsors.active[type] = selected;
 
-        // Jika bukan sistem angsuran, dana awal langsung masuk ke Kas
         if (!selected.isInstallment) {
             gameState.budget += selected.fee;
             showAlert('Sponsor Ditandatangani!', `Klub Anda menerima dana sponsor awal sebesar ${formatRupiah(selected.fee)} dari ${selected.name}.`, 'fa-handshake');
@@ -499,7 +486,6 @@ function signSponsorContract(type, sponsorId) {
     }
 }
 
-// Fitur Putus / Batal Kontrak (Pengembalian 70% + Penalti Denda 15% = Total 85%)
 function terminateSponsorContract(type) {
     const active = gameState.sponsors.active[type];
     if (!active) return;
@@ -830,7 +816,6 @@ function finishMatchSimulationUI(userMatch) {
         }
     });
 
-    // Process player stamina, salaries, and contract decay
     gameState.roster.forEach(p => {
         if (gameState.startingLineupIds.includes(p.id)) {
             p.stamina = Math.max(20, p.stamina - Math.floor(Math.random() * 15 + 10));
@@ -845,7 +830,6 @@ function finishMatchSimulationUI(userMatch) {
         if (p.lockoutMatches > 0) p.lockoutMatches--;
     });
 
-    // ------------------- SPONSOR PAYMENT & BONUS CHECK -------------------
     const userWon = (userMatch.home.isUser && userMatch.homeSets > userMatch.awaySets) || 
                     (userMatch.away.isUser && userMatch.awaySets > userMatch.homeSets);
 
@@ -855,8 +839,6 @@ function finishMatchSimulationUI(userMatch) {
         ['primary', 'secondary', 'extra'].forEach(type => {
             const active = gameState.sponsors.active[type];
             if (active && !active.completed) {
-                
-                // Jika sponsor tipe angsuran per kemenangan match
                 if (active.isInstallment && active.paidWins < active.targetVal) {
                     active.paidWins++;
                     active.receivedTotal += active.perWinFee;
@@ -868,7 +850,6 @@ function finishMatchSimulationUI(userMatch) {
                     );
                 }
 
-                // Cek pencapaian objektif & bonus 15%
                 if (active.evaluator(0, userTeamData.won, userTeamData.setW)) {
                     active.completed = true;
                     if (!active.bonusPaid) {
@@ -903,7 +884,6 @@ function processEndOfWeekAndSeason() {
 
     let reportMessage = `Musim kompetisi berakhir! Tim Anda (${gameState.teamName}) finis di peringkat #${userRank} pada ${LEAGUE_TIERS[gameState.userLeagueTier].name}.\n\n`;
 
-    // ------------------- EVALUASI SPONSOR & PENALTI AKHIR MUSIM -------------------
     let totalPenaltyDeducted = 0;
     
     ['primary', 'secondary', 'extra'].forEach(type => {
@@ -922,7 +902,6 @@ function processEndOfWeekAndSeason() {
                     }
                 }
             } else {
-                // PENALTI AKHIR MUSIM: Potongan acak 45% hingga 70% dari nilai total sponsor
                 const penaltyPercent = (Math.floor(Math.random() * 26) + 45) / 100;
                 const penaltyFee = Math.round(active.fee * penaltyPercent);
                 
@@ -938,7 +917,6 @@ function processEndOfWeekAndSeason() {
         reportMessage += `\n⚠️ Total Penalti Sponsor Musim Ini: **${formatRupiah(totalPenaltyDeducted)}**\n\n`;
     }
 
-    // Status Promosi / Degradasi Liga
     if (userRank <= 2 && gameState.userLeagueTier > 1) {
         gameState.userLeagueTier--;
         reportMessage += `🎉 **PROMOSI OTOMATIS!** Naik kasta ke **${LEAGUE_TIERS[gameState.userLeagueTier].name}**!`;
@@ -959,7 +937,6 @@ function processEndOfWeekAndSeason() {
 
     showAlert('Rangkuman Finansial & Akhir Musim!', reportMessage, 'fa-trophy');
 
-    // Reset Musim Baru
     gameState.currentWeek = 1;
     gameState.sponsors = {
         available: generateSponsorOptions(5),
@@ -1003,24 +980,17 @@ function renderTransferMarket() {
   if (!container) return;
   container.innerHTML = '';
 
-  // 1. Ambil semua posisi yang dicentang (Checkbox)
   const checkedPosBoxes = document.querySelectorAll('.market-pos-cb:checked');
   const selectedPositions = Array.from(checkedPosBoxes).map(cb => cb.value);
 
-  // 2. Ambil status checkbox Free Agent
   const freeAgentOnly = document.getElementById('market-free-agent-cb')?.checked || false;
-
-  // 3. Ambil nilai pengurutan (Sort)
   const sortFilter = document.getElementById('market-sort-filter')?.value || 'none';
 
-  // 4. Proses Filter Data Pemain
   let filtered = gameState.marketPlayers.filter(p => {
-    // Jika ada posisi yang dicentang, pastikan posisi pemain termasuk di antaranya
     if (selectedPositions.length > 0 && !selectedPositions.includes(p.position)) {
       return false;
     }
 
-    // Filter status Free Agent jika dicentang
     if (freeAgentOnly && p.clubName !== null) {
       return false;
     }
@@ -1028,7 +998,6 @@ function renderTransferMarket() {
     return true;
   });
 
-  // 5. Urutkan Data Pemain (OVR, Gaji, atau Nilai Transfer)
   filtered.sort((a, b) => {
     switch (sortFilter) {
       case 'ovr-desc':
@@ -1048,13 +1017,11 @@ function renderTransferMarket() {
     }
   });
 
-  // 6. Jika tidak ada hasil
   if (filtered.length === 0) {
     container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria pencarian.</div>`;
     return;
   }
 
-  // 7. Render Kartu Pemain
   filtered.forEach(p => {
     const card = document.createElement('div');
     card.className = 'bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-500 transition shadow-lg';
@@ -1082,13 +1049,17 @@ function renderTransferMarket() {
           <span class="text-slate-400">Nilai Transfer:</span>
           <span class="font-mono text-amber-300 font-bold">${formatRupiah(p.value)}</span>
         </div>
-        <button onclick="openNegoModal('${p.id}')" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
+        <button onclick="startPlayerNegotiation('${p.id}', false)" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
           <i class="fa-solid fa-handshake"></i> Rekrut / Nego
         </button>
       </div>
     `;
     container.appendChild(card);
   });
+}
+
+function openNegoModal(playerId) {
+    startPlayerNegotiation(playerId, false);
 }
 
 function addTransferNews(type, newsText) {
