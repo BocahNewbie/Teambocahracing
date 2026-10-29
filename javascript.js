@@ -58,6 +58,20 @@ function getAverageLineupOvr() {
     return Math.round(sum / starters.length);
 }
 
+function getAllAiTeamNames() {
+    const allClubs = [];
+    if (gameState.leagues) {
+        Object.values(gameState.leagues).forEach(tierTeams => {
+            tierTeams.forEach(team => {
+                if (!team.isUser) {
+                    allClubs.push(team.name);
+                }
+            });
+        });
+    }
+    return allClubs;
+}
+
 // REGISTRATION HANDLER
 function handleRegistration(e) {
     e.preventDefault();
@@ -147,42 +161,28 @@ function generateLeagueSchedules() {
 }
 
 function generateMarketPool() {
-  gameState.marketPlayers = [];
-  
-  let allClubs = [];
-  if (gameState.leagues) {
-    Object.values(gameState.leagues).forEach(tierTeams => {
-      tierTeams.forEach(team => {
-        if (!team.isUser) {
-          allClubs.push(team.name);
+    gameState.marketPlayers = [];
+    const allClubs = getAllAiTeamNames();
+
+    const tiers = ['H', 'G', 'F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS'];
+    const totalPlayers = 300;
+
+    for (let i = 0; i < totalPlayers; i++) {
+        const randomTier = tiers[Math.floor(Math.random() * tiers.length)];
+        const isLocal = Math.random() < 0.7;
+        const country = isLocal ? 'Indonesia' : null;
+
+        const p = createRandomPlayer(`mkt_p_${i}`, [randomTier], country);
+        const isFreeAgent = Math.random() < 0.4;
+
+        if (!isFreeAgent && allClubs.length > 0) {
+            p.clubName = allClubs[Math.floor(Math.random() * allClubs.length)];
+        } else {
+            p.clubName = null;
         }
-      });
-    });
-  }
 
-  if (allClubs.length === 0 && typeof AI_TEAM_POOL !== 'undefined') {
-    allClubs = AI_TEAM_POOL;
-  }
-
-  const tiers = ['H', 'G', 'F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS'];
-  const totalPlayers = 300;
-
-  for (let i = 0; i < totalPlayers; i++) {
-    const randomTier = tiers[Math.floor(Math.random() * tiers.length)];
-    const isLocal = Math.random() < 0.7;
-    const country = isLocal ? 'Indonesia' : null;
-
-    const p = createRandomPlayer(`mkt_p_${i}`, [randomTier], country);
-    const isFreeAgent = Math.random() < 0.4;
-
-    if (!isFreeAgent && allClubs.length > 0) {
-      p.clubName = allClubs[Math.floor(Math.random() * allClubs.length)];
-    } else {
-      p.clubName = null;
+        gameState.marketPlayers.push(p);
     }
-
-    gameState.marketPlayers.push(p);
-  }
 }
 
 // HEADER UI UPDATES
@@ -323,72 +323,72 @@ function toggleStarter(playerId) {
 }
 
 function openSwapModal(starterId) {
-  const starter = gameState.roster.find(p => p.id === starterId);
-  if (!starter) return;
-  currentSwapStarterId = starterId;
+    const starter = gameState.roster.find(p => p.id === starterId);
+    if (!starter) return;
+    currentSwapStarterId = starterId;
 
-  const starterCard = document.getElementById('swap-starter-card');
-  starterCard.innerHTML = `
-    <div class="flex justify-between items-center">
-      <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded">PEMAIN UTAMA KELUAR</span>
-      <span class="text-xs font-bold text-emerald-400 font-mono">OVR ${getEffectiveOvr(starter)} (${starter.ovr})</span>
-    </div>
-    <div class="flex items-center justify-between mt-1">
-      <div>
-        <h4 class="font-bold text-white text-sm">${starter.flag} ${starter.name}</h4>
-        <p class="text-xs text-slate-400">${starter.position} • Stamina: ${starter.stamina}%</p>
-      </div>
-      <div class="grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
-        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SPK</span><b>${starter.skills.spike}</b></div>
-        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">BLK</span><b>${starter.skills.block}</b></div>
-        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SRV</span><b>${starter.skills.serve}</b></div>
-        <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">RCV</span><b>${starter.skills.receive}</b></div>
-      </div>
-    </div>
-  `;
-
-  const benched = gameState.roster.filter(p => !gameState.startingLineupIds.includes(p.id));
-  const listEl = document.getElementById('swap-candidates-list');
-  listEl.innerHTML = '';
-
-  if (benched.length === 0) {
-    listEl.innerHTML = `<p class="text-center text-xs text-slate-500 py-4 italic">Tidak ada pemain cadangan yang tersedia.</p>`;
-  } else {
-    benched.sort((a, b) => {
-      const aMatch = a.position === starter.position ? 1 : 0;
-      const bMatch = b.position === starter.position ? 1 : 0;
-      return bMatch - aMatch;
-    });
-
-    benched.forEach(benchP => {
-      const diffOvr = getEffectiveOvr(benchP) - getEffectiveOvr(starter);
-      const isPosMatch = benchP.position === starter.position;
-
-      const posBadge = isPosMatch 
-        ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">COCOK</span>`
-        : `<span class="bg-slate-700 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">BEDA POSISI</span>`;
-
-      const card = document.createElement('div');
-      card.className = `bg-slate-800 border ${isPosMatch ? 'border-emerald-500/40' : 'border-slate-700'} p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-blue-500 transition`;
-      card.innerHTML = `
-        <div>
-          <h5 class="font-bold text-white text-xs flex items-center gap-1">
-            ${benchP.flag} ${benchP.name} 
-            <span class="text-[10px] font-normal border px-1 rounded ${TIERS[benchP.tier].color}">${benchP.tier}</span>
-            ${posBadge}
-          </h5>
-          <p class="text-[11px] text-slate-400 mt-0.5">${benchP.position} • Stamina: <b class="text-emerald-400">${benchP.stamina}%</b></p>
+    const starterCard = document.getElementById('swap-starter-card');
+    starterCard.innerHTML = `
+        <div class="flex justify-between items-center">
+            <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded">PEMAIN UTAMA KELUAR</span>
+            <span class="text-xs font-bold text-emerald-400 font-mono">OVR ${getEffectiveOvr(starter)} (${starter.ovr})</span>
         </div>
-        <div class="flex items-center gap-3 text-xs">
-          <span class="font-bold ${diffOvr >= 0 ? 'text-emerald-400' : 'text-rose-400'}">OVR ${getEffectiveOvr(benchP)} (${diffOvr >= 0 ? '+' + diffOvr : diffOvr})</span>
-          <button onclick="executeSwap('${benchP.id}')" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Tukar</button>
+        <div class="flex items-center justify-between mt-1">
+            <div>
+                <h4 class="font-bold text-white text-sm">${starter.flag} ${starter.name}</h4>
+                <p class="text-xs text-slate-400">${starter.position} • Stamina: ${starter.stamina}%</p>
+            </div>
+            <div class="grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SPK</span><b>${starter.skills.spike}</b></div>
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">BLK</span><b>${starter.skills.block}</b></div>
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">SRV</span><b>${starter.skills.serve}</b></div>
+                <div class="bg-slate-900 px-1.5 py-1 rounded"><span class="text-slate-500 block">RCV</span><b>${starter.skills.receive}</b></div>
+            </div>
         </div>
-      `;
-      listEl.appendChild(card);
-    });
-  }
+    `;
 
-  document.getElementById('modal-swap-player').classList.remove('hidden');
+    const benched = gameState.roster.filter(p => !gameState.startingLineupIds.includes(p.id));
+    const listEl = document.getElementById('swap-candidates-list');
+    listEl.innerHTML = '';
+
+    if (benched.length === 0) {
+        listEl.innerHTML = `<p class="text-center text-xs text-slate-500 py-4 italic">Tidak ada pemain cadangan yang tersedia.</p>`;
+    } else {
+        benched.sort((a, b) => {
+            const aMatch = a.position === starter.position ? 1 : 0;
+            const bMatch = b.position === starter.position ? 1 : 0;
+            return bMatch - aMatch;
+        });
+
+        benched.forEach(benchP => {
+            const diffOvr = getEffectiveOvr(benchP) - getEffectiveOvr(starter);
+            const isPosMatch = benchP.position === starter.position;
+
+            const posBadge = isPosMatch 
+                ? `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">COCOK</span>`
+                : `<span class="bg-slate-700 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1">BEDA POSISI</span>`;
+
+            const card = document.createElement('div');
+            card.className = `bg-slate-800 border ${isPosMatch ? 'border-emerald-500/40' : 'border-slate-700'} p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-blue-500 transition`;
+            card.innerHTML = `
+                <div>
+                    <h5 class="font-bold text-white text-xs flex items-center gap-1">
+                        ${benchP.flag} ${benchP.name} 
+                        <span class="text-[10px] font-normal border px-1 rounded ${TIERS[benchP.tier].color}">${benchP.tier}</span>
+                        ${posBadge}
+                    </h5>
+                    <p class="text-[11px] text-slate-400 mt-0.5">${benchP.position} • Stamina: <b class="text-emerald-400">${benchP.stamina}%</b></p>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="font-bold ${diffOvr >= 0 ? 'text-emerald-400' : 'text-rose-400'}">OVR ${getEffectiveOvr(benchP)} (${diffOvr >= 0 ? '+' + diffOvr : diffOvr})</span>
+                    <button onclick="executeSwap('${benchP.id}')" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-xl text-xs">Tukar</button>
+                </div>
+            `;
+            listEl.appendChild(card);
+        });
+    }
+
+    document.getElementById('modal-swap-player').classList.remove('hidden');
 }
 
 function executeSwap(candidateId) {
@@ -958,12 +958,17 @@ function processEndOfWeekAndSeason() {
     renderSponsorsUI();
 }
 
+// PROSES TRANSFER CPU / AI TERPADU (GABUNGAN)
 function processCpuTransfers() {
+    const allAiTeams = getAllAiTeamNames();
+    if (allAiTeams.length === 0) return;
+
+    // A. Transfer rutin antar klub AI (Beli dari Free Agent/Market Pool)
     if (Math.random() < 0.45 && gameState.marketPlayers.length > 0) {
         const available = gameState.marketPlayers.filter(p => !p.clubName);
         if (available.length > 0) {
             const playerToBuy = available[Math.floor(Math.random() * available.length)];
-            const buyingTeam = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
+            const buyingTeam = allAiTeams[Math.floor(Math.random() * allAiTeams.length)];
             
             playerToBuy.clubName = buyingTeam;
             addTransferNews(
@@ -972,90 +977,125 @@ function processCpuTransfers() {
             );
         }
     }
+
+    // B. AI menawar pemain milik user yang ada di Daftar Transfer (Menambah Kas Klub)
+    const listedPlayers = gameState.roster.filter(p => p.isTransferListed);
+    if (listedPlayers.length > 0 && Math.random() < 0.60) {
+        const targetPlayer = listedPlayers[Math.floor(Math.random() * listedPlayers.length)];
+        const buyingTeam = allAiTeams[Math.floor(Math.random() * allAiTeams.length)];
+
+        // Tawaran harga antara 90% - 120% dari nilai pasar
+        const offerAmount = Math.round(targetPlayer.value * (0.9 + (Math.random() * 0.3)));
+
+        // Tambahkan dana ke Kas Klub
+        gameState.budget += offerAmount;
+
+        // Hapus pemain dari roster user & masukkan ke klub pembeli
+        gameState.roster = gameState.roster.filter(p => p.id !== targetPlayer.id);
+        gameState.startingLineupIds = gameState.startingLineupIds.filter(id => id !== targetPlayer.id);
+        
+        targetPlayer.clubName = buyingTeam;
+        targetPlayer.isTransferListed = false;
+        gameState.marketPlayers.push(targetPlayer);
+
+        // Tambahkan pemberitahuan Inbox & Berita
+        gameState.inboxMessages.unshift({
+            id: 'msg_sale_' + Date.now(),
+            type: 'PENJUALAN PEMAIN',
+            time: `${gameState.currentWeek}`,
+            message: `🎉 **Pemain Terjual!** Klub **${buyingTeam}** resmi membeli **${targetPlayer.name}** seharga **${formatRupiah(offerAmount)}**. Dana telah masuk ke kas klub.`,
+            handled: false
+        });
+
+        addTransferNews(
+            'TRANSFER KELUAR',
+            `Klub <b>${gameState.teamName}</b> menjual <b>${targetPlayer.name}</b> ke <b>${buyingTeam}</b> seharga ${formatRupiah(offerAmount)}.`
+        );
+    }
 }
 
 // TRANSFER MARKET & NEWS
 function renderTransferMarket() {
-  const container = document.getElementById('market-players-grid');
-  if (!container) return;
-  container.innerHTML = '';
+    const container = document.getElementById('market-players-grid');
+    if (!container) return;
+    container.innerHTML = '';
 
-  const checkedPosBoxes = document.querySelectorAll('.market-pos-cb:checked');
-  const selectedPositions = Array.from(checkedPosBoxes).map(cb => cb.value);
+    const checkedPosBoxes = document.querySelectorAll('.market-pos-cb:checked');
+    const selectedPositions = Array.from(checkedPosBoxes).map(cb => cb.value);
 
-  const freeAgentOnly = document.getElementById('market-free-agent-cb')?.checked || false;
-  const sortFilter = document.getElementById('market-sort-filter')?.value || 'none';
+    const freeAgentOnly = document.getElementById('market-free-agent-cb')?.checked || false;
+    const sortFilter = document.getElementById('market-sort-filter')?.value || 'none';
 
-  let filtered = gameState.marketPlayers.filter(p => {
-    if (selectedPositions.length > 0 && !selectedPositions.includes(p.position)) {
-      return false;
+    let filtered = gameState.marketPlayers.filter(p => {
+        if (selectedPositions.length > 0 && !selectedPositions.includes(p.position)) {
+            return false;
+        }
+
+        if (freeAgentOnly && p.clubName !== null) {
+            return false;
+        }
+
+        return true;
+    });
+
+    filtered.sort((a, b) => {
+        switch (sortFilter) {
+            case 'ovr-desc':
+                return b.ovr - a.ovr;
+            case 'ovr-asc':
+                return a.ovr - b.ovr;
+            case 'salary-desc':
+                return b.salary - a.salary;
+            case 'salary-asc':
+                return a.salary - b.salary;
+            case 'price-desc':
+                return b.value - a.value;
+            case 'price-asc':
+                return a.value - b.value;
+            default:
+                return 0;
+        }
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria pencarian.</div>`;
+        return;
     }
 
-    if (freeAgentOnly && p.clubName !== null) {
-      return false;
-    }
-
-    return true;
-  });
-
-  filtered.sort((a, b) => {
-    switch (sortFilter) {
-      case 'ovr-desc':
-        return b.ovr - a.ovr;
-      case 'ovr-asc':
-        return a.ovr - b.ovr;
-      case 'salary-desc':
-        return b.salary - a.salary;
-      case 'salary-asc':
-        return a.salary - b.salary;
-      case 'price-desc':
-        return b.value - a.value;
-      case 'price-asc':
-        return a.value - b.value;
-      default:
-        return 0;
-    }
-  });
-
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria pencarian.</div>`;
-    return;
-  }
-
-  filtered.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-500 transition shadow-lg';
-    card.innerHTML = `
-      <div>
-        <div class="flex items-center justify-between">
-          <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${TIERS[p.tier]?.color || 'bg-slate-700'}">${p.tier}</span>
-          <span class="text-xs font-mono font-bold text-amber-400">OVR ${p.ovr}</span>
-        </div>
-        <div class="mt-2">
-          <h4 class="font-bold text-white text-sm flex items-center gap-1.5">
-            <span>${p.flag}</span>
-            <span class="truncate">${p.name}</span>
-          </h4>
-          <p class="text-[11px] text-slate-400 mt-0.5">${p.position} • ${p.country}</p>
-          <p class="text-[10px] text-slate-500 mt-0.5">${p.clubName ? 'Klub: ' + p.clubName : '<span class="text-emerald-400 font-semibold">Status: Free Agent</span>'}</p>
-        </div>
-      </div>
-      <div class="mt-4 pt-3 border-t border-slate-700/50">
-        <div class="flex justify-between items-center text-[11px] mb-1">
-          <span class="text-slate-400">Gaji Ekspektasi:</span>
-          <span class="font-mono text-emerald-400 font-bold">${formatRupiah(p.salary)}/m</span>
-        </div>
-        <div class="flex justify-between items-center text-[11px] mb-3">
-          <span class="text-slate-400">Nilai Transfer:</span>
-          <span class="font-mono text-amber-300 font-bold">${formatRupiah(p.value)}</span>
-        </div>
-        <button onclick="startPlayerNegotiation('${p.id}', false)" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
-          <i class="fa-solid fa-handshake"></i> Rekrut / Nego
-        </button>
-      </div>
-    `;
-    container.appendChild(card);
-  });
+    filtered.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-500 transition shadow-lg';
+        card.innerHTML = `
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${TIERS[p.tier]?.color || 'bg-slate-700'}">${p.tier}</span>
+                    <span class="text-xs font-mono font-bold text-amber-400">OVR ${p.ovr}</span>
+                </div>
+                <div class="mt-2">
+                    <h4 class="font-bold text-white text-sm flex items-center gap-1.5">
+                        <span>${p.flag}</span>
+                        <span class="truncate">${p.name}</span>
+                    </h4>
+                    <p class="text-[11px] text-slate-400 mt-0.5">${p.position} • ${p.country}</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">${p.clubName ? 'Klub: ' + p.clubName : '<span class="text-emerald-400 font-semibold">Status: Free Agent</span>'}</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-700/50">
+                <div class="flex justify-between items-center text-[11px] mb-1">
+                    <span class="text-slate-400">Gaji Ekspektasi:</span>
+                    <span class="font-mono text-emerald-400 font-bold">${formatRupiah(p.salary)}/m</span>
+                </div>
+                <div class="flex justify-between items-center text-[11px] mb-3">
+                    <span class="text-slate-400">Nilai Transfer:</span>
+                    <span class="font-mono text-amber-300 font-bold">${formatRupiah(p.value)}</span>
+                </div>
+                <button onclick="startPlayerNegotiation('${p.id}', false)" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md">
+                    <i class="fa-solid fa-handshake"></i> Rekrut / Nego
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
 }
 
 function openNegoModal(playerId) {
@@ -1359,7 +1399,7 @@ function finalizeNegotiation(success) {
     renderTransferMarket();
 }
 
-// 1. Fungsi Toggle Daftar Transfer Pemain
+// TOGGLE LISTING TRANSFER UNTUK PEMAIN USER
 function toggleTransferList(playerId) {
     const p = gameState.roster.find(x => x.id === playerId);
     if (!p) return;
@@ -1377,18 +1417,16 @@ function toggleTransferList(playerId) {
     renderSquadUI();
 }
 
-// 2. Fungsi Putus Kontrak (Release Pemain dengan Penalti)
+// PEMUTUSAN KONTRAK PEMAIN (PENALTI)
 function releasePlayer(playerId) {
     const p = gameState.roster.find(x => x.id === playerId);
     if (!p) return;
 
-    // Batas minimal skuad (minimal 6 pemain starter)
     if (gameState.roster.length <= 6) {
         showAlert('Gagal Putus Kontrak', 'Skuad Anda harus memiliki minimal 6 pemain!', 'fa-triangle-exclamation');
         return;
     }
 
-    // Penalti 50% dari sisa total kewajiban gaji
     const penaltyFee = Math.round((p.salary * p.contractMatches) * 0.5);
 
     if (gameState.budget < penaltyFee) {
@@ -1396,14 +1434,10 @@ function releasePlayer(playerId) {
         return;
     }
 
-    // Potong kas klub
     gameState.budget -= penaltyFee;
-
-    // Hapus dari skuad utama & lineup
     gameState.roster = gameState.roster.filter(x => x.id !== playerId);
     gameState.startingLineupIds = gameState.startingLineupIds.filter(id => id !== playerId);
 
-    // Ubah status pemain jadi Free Agent dan masukkan ke Bursa Transfer
     p.clubName = null;
     p.isTransferListed = false;
     gameState.marketPlayers.push(p);
@@ -1421,58 +1455,7 @@ function releasePlayer(playerId) {
     renderTransferMarket();
 }
 
-function processCpuTransfers() {
-    // A. Transfer rutin antar klub AI
-    if (Math.random() < 0.45 && gameState.marketPlayers.length > 0) {
-        const available = gameState.marketPlayers.filter(p => !p.clubName);
-        if (available.length > 0) {
-            const playerToBuy = available[Math.floor(Math.random() * available.length)];
-            const buyingTeam = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
-            
-            playerToBuy.clubName = buyingTeam;
-            addTransferNews(
-                'BURSA LIGA',
-                `Klub <b>${buyingTeam}</b> merekrut <b>${playerToBuy.flag} ${playerToBuy.name}</b> (${playerToBuy.position}) senilai ${formatRupiah(playerToBuy.value)}.`
-            );
-        }
-    }
-
-    // B. AI menawar pemain milik user yang ada di Daftar Transfer (Menambah Kas Klub)
-    const listedPlayers = gameState.roster.filter(p => p.isTransferListed);
-    if (listedPlayers.length > 0 && Math.random() < 0.60) {
-        const targetPlayer = listedPlayers[Math.floor(Math.random() * listedPlayers.length)];
-        const buyingTeam = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
-
-        // Tawaran harga antara 90% - 120% dari nilai pasar
-        const offerAmount = Math.round(targetPlayer.value * (0.9 + (Math.random() * 0.3)));
-
-        // Tambahkan dana ke Kas Klub
-        gameState.budget += offerAmount;
-
-        // Hapus pemain dari roster user & masukkan ke klub pembeli
-        gameState.roster = gameState.roster.filter(p => p.id !== targetPlayer.id);
-        gameState.startingLineupIds = gameState.startingLineupIds.filter(id => id !== targetPlayer.id);
-        
-        targetPlayer.clubName = buyingTeam;
-        targetPlayer.isTransferListed = false;
-        gameState.marketPlayers.push(targetPlayer);
-
-        // Tambahkan pemberitahuan Inbox & Berita
-        gameState.inboxMessages.unshift({
-            id: 'msg_sale_' + Date.now(),
-            type: 'PENJUALAN PEMAIN',
-            time: `${gameState.currentWeek}`,
-            message: `🎉 **Pemain Terjual!** Klub **${buyingTeam}** resmi membeli **${targetPlayer.name}** seharga **${formatRupiah(offerAmount)}**. Dana telah masuk ke kas klub.`,
-            handled: false
-        });
-
-        addTransferNews(
-            'TRANSFER KELUAR',
-            `Klub <b>${gameState.teamName}</b> menjual <b>${targetPlayer.name}</b> ke <b>${buyingTeam}</b> seharga ${formatRupiah(offerAmount)}.`
-        );
-    }
-}
-
+// MODAL DETAIL PEMAIN
 function openPlayerModal(playerId) {
     const p = gameState.roster.find(x => x.id === playerId);
     if (!p) return;
@@ -1480,7 +1463,6 @@ function openPlayerModal(playerId) {
     const content = document.getElementById('modal-player-content');
     if (!content) return;
 
-    // Perhitungan Denda Putus Kontrak (Misal: 50% dari sisa total gaji)
     const releasePenalty = Math.round((p.salary * p.contractMatches) * 0.5);
 
     content.innerHTML = `
