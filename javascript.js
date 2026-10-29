@@ -1359,12 +1359,129 @@ function finalizeNegotiation(success) {
     renderTransferMarket();
 }
 
+// 1. Fungsi Toggle Daftar Transfer Pemain
+function toggleTransferList(playerId) {
+    const p = gameState.roster.find(x => x.id === playerId);
+    if (!p) return;
+
+    p.isTransferListed = !p.isTransferListed;
+
+    closeModal('modal-player-detail');
+
+    if (p.isTransferListed) {
+        showAlert('Daftar Transfer', `${p.name} telah dimasukkan ke daftar jual/transfer. Klub AI berpeluang mengajukan penawaran setiap pekannya.`, 'fa-tag');
+    } else {
+        showAlert('Daftar Transfer', `${p.name} ditarik dari daftar transfer.`, 'fa-circle-info');
+    }
+
+    renderSquadUI();
+}
+
+// 2. Fungsi Putus Kontrak (Release Pemain dengan Penalti)
+function releasePlayer(playerId) {
+    const p = gameState.roster.find(x => x.id === playerId);
+    if (!p) return;
+
+    // Batas minimal skuad (minimal 6 pemain starter)
+    if (gameState.roster.length <= 6) {
+        showAlert('Gagal Putus Kontrak', 'Skuad Anda harus memiliki minimal 6 pemain!', 'fa-triangle-exclamation');
+        return;
+    }
+
+    // Penalti 50% dari sisa total kewajiban gaji
+    const penaltyFee = Math.round((p.salary * p.contractMatches) * 0.5);
+
+    if (gameState.budget < penaltyFee) {
+        showAlert('Kas Tidak Cukup', `Kas klub Anda (${formatRupiah(gameState.budget)}) tidak cukup untuk membayar penalti pemutusan kontrak sebesar ${formatRupiah(penaltyFee)}!`, 'fa-circle-xmark');
+        return;
+    }
+
+    // Potong kas klub
+    gameState.budget -= penaltyFee;
+
+    // Hapus dari skuad utama & lineup
+    gameState.roster = gameState.roster.filter(x => x.id !== playerId);
+    gameState.startingLineupIds = gameState.startingLineupIds.filter(id => id !== playerId);
+
+    // Ubah status pemain jadi Free Agent dan masukkan ke Bursa Transfer
+    p.clubName = null;
+    p.isTransferListed = false;
+    gameState.marketPlayers.push(p);
+
+    closeModal('modal-player-detail');
+
+    showAlert(
+        'Pemutusan Kontrak',
+        `Kontrak ${p.name} resmi diputus. Kas klub dipotong sebesar ${formatRupiah(penaltyFee)} sebagai denda penalti. Pemain kini berstatus Free Agent.`,
+        'fa-user-minus'
+    );
+
+    updateHeaderUI();
+    renderSquadUI();
+    renderTransferMarket();
+}
+
+function processCpuTransfers() {
+    // A. Transfer rutin antar klub AI
+    if (Math.random() < 0.45 && gameState.marketPlayers.length > 0) {
+        const available = gameState.marketPlayers.filter(p => !p.clubName);
+        if (available.length > 0) {
+            const playerToBuy = available[Math.floor(Math.random() * available.length)];
+            const buyingTeam = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
+            
+            playerToBuy.clubName = buyingTeam;
+            addTransferNews(
+                'BURSA LIGA',
+                `Klub <b>${buyingTeam}</b> merekrut <b>${playerToBuy.flag} ${playerToBuy.name}</b> (${playerToBuy.position}) senilai ${formatRupiah(playerToBuy.value)}.`
+            );
+        }
+    }
+
+    // B. AI menawar pemain milik user yang ada di Daftar Transfer (Menambah Kas Klub)
+    const listedPlayers = gameState.roster.filter(p => p.isTransferListed);
+    if (listedPlayers.length > 0 && Math.random() < 0.60) {
+        const targetPlayer = listedPlayers[Math.floor(Math.random() * listedPlayers.length)];
+        const buyingTeam = AI_TEAM_POOL[Math.floor(Math.random() * AI_TEAM_POOL.length)];
+
+        // Tawaran harga antara 90% - 120% dari nilai pasar
+        const offerAmount = Math.round(targetPlayer.value * (0.9 + (Math.random() * 0.3)));
+
+        // Tambahkan dana ke Kas Klub
+        gameState.budget += offerAmount;
+
+        // Hapus pemain dari roster user & masukkan ke klub pembeli
+        gameState.roster = gameState.roster.filter(p => p.id !== targetPlayer.id);
+        gameState.startingLineupIds = gameState.startingLineupIds.filter(id => id !== targetPlayer.id);
+        
+        targetPlayer.clubName = buyingTeam;
+        targetPlayer.isTransferListed = false;
+        gameState.marketPlayers.push(targetPlayer);
+
+        // Tambahkan pemberitahuan Inbox & Berita
+        gameState.inboxMessages.unshift({
+            id: 'msg_sale_' + Date.now(),
+            type: 'PENJUALAN PEMAIN',
+            time: `${gameState.currentWeek}`,
+            message: `🎉 **Pemain Terjual!** Klub **${buyingTeam}** resmi membeli **${targetPlayer.name}** seharga **${formatRupiah(offerAmount)}**. Dana telah masuk ke kas klub.`,
+            handled: false
+        });
+
+        addTransferNews(
+            'TRANSFER KELUAR',
+            `Klub <b>${gameState.teamName}</b> menjual <b>${targetPlayer.name}</b> ke <b>${buyingTeam}</b> seharga ${formatRupiah(offerAmount)}.`
+        );
+    }
+}
+
 function openPlayerModal(playerId) {
     const p = gameState.roster.find(x => x.id === playerId);
     if (!p) return;
 
     const content = document.getElementById('modal-player-content');
     if (!content) return;
+
+    // Perhitungan Denda Putus Kontrak (Misal: 50% dari sisa total gaji)
+    const releasePenalty = Math.round((p.salary * p.contractMatches) * 0.5);
 
     content.innerHTML = `
         <div class="text-center mb-4">
@@ -1386,9 +1503,13 @@ function openPlayerModal(playerId) {
                 <span class="text-slate-400">Sisa Kontrak:</span>
                 <b class="text-slate-200">${p.contractMatches} Match</b>
             </div>
+            <div class="flex justify-between border-b border-slate-800 pb-2">
+                <span class="text-slate-400">Nilai Pasar:</span>
+                <b class="text-amber-300">${formatRupiah(p.value)}</b>
+            </div>
             <div class="flex justify-between">
-                <span class="text-slate-400">Kondisi Stamina:</span>
-                <b class="text-emerald-400">${p.stamina}%</b>
+                <span class="text-slate-400">Status Transfer:</span>
+                <b class="${p.isTransferListed ? 'text-cyan-400' : 'text-slate-400'}">${p.isTransferListed ? 'Di Daftar Transfer' : 'Tidak Didaftarkan'}</b>
             </div>
         </div>
 
@@ -1401,7 +1522,15 @@ function openPlayerModal(playerId) {
 
         <div class="space-y-2">
             <button onclick="closeModal('modal-player-detail'); startPlayerNegotiation('${p.id}', true)" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition">
-                Perbarui Kontrak
+                <i class="fa-solid fa-file-contract mr-1.5"></i> Perbarui Kontrak
+            </button>
+            
+            <button onclick="toggleTransferList('${p.id}')" class="w-full py-2.5 ${p.isTransferListed ? 'bg-amber-600 hover:bg-amber-500' : 'bg-cyan-600 hover:bg-cyan-500'} text-white font-bold rounded-xl text-xs transition">
+                <i class="fa-solid fa-tag mr-1.5"></i> ${p.isTransferListed ? 'Tarik dari Daftar Transfer' : 'Jual (Masukkan ke Daftar Transfer)'}
+            </button>
+
+            <button onclick="releasePlayer('${p.id}')" class="w-full py-2.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 font-bold rounded-xl text-xs transition">
+                <i class="fa-solid fa-user-minus mr-1.5"></i> Putus Kontrak (Penalti ${formatRupiah(releasePenalty)})
             </button>
         </div>
     `;
