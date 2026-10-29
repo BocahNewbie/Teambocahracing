@@ -1003,42 +1003,58 @@ function renderTransferMarket() {
   if (!container) return;
   container.innerHTML = '';
 
-  // 1. Ambil nilai filter posisi dan filter pengurutan
-  const posFilter = document.getElementById('market-pos-filter')?.value || 'ALL';
+  // 1. Ambil semua posisi yang dicentang (Checkbox)
+  const checkedPosBoxes = document.querySelectorAll('.market-pos-cb:checked');
+  const selectedPositions = Array.from(checkedPosBoxes).map(cb => cb.value);
+
+  // 2. Ambil status checkbox Free Agent
+  const freeAgentOnly = document.getElementById('market-free-agent-cb')?.checked || false;
+
+  // 3. Ambil nilai pengurutan (Sort)
   const sortFilter = document.getElementById('market-sort-filter')?.value || 'none';
 
-  // 2. Saring pemain berdasarkan posisi
+  // 4. Proses Filter Data Pemain
   let filtered = gameState.marketPlayers.filter(p => {
-    if (posFilter !== 'ALL' && p.position !== posFilter) return false;
+    // Jika ada posisi yang dicentang, pastikan posisi pemain termasuk di antaranya
+    if (selectedPositions.length > 0 && !selectedPositions.includes(p.position)) {
+      return false;
+    }
+
+    // Filter status Free Agent jika dicentang
+    if (freeAgentOnly && p.clubName !== null) {
+      return false;
+    }
+
     return true;
   });
 
-  // 3. Urutkan hasil saringan berdasarkan opsi sort yang dipilih
+  // 5. Urutkan Data Pemain (OVR, Gaji, atau Nilai Transfer)
   filtered.sort((a, b) => {
     switch (sortFilter) {
       case 'ovr-desc':
         return b.ovr - a.ovr;
       case 'ovr-asc':
         return a.ovr - b.ovr;
-      case 'price-desc':
-        return b.value - a.value;
-      case 'price-asc':
-        return a.value - b.value;
       case 'salary-desc':
         return b.salary - a.salary;
       case 'salary-asc':
         return a.salary - b.salary;
+      case 'price-desc':
+        return b.value - a.value;
+      case 'price-asc':
+        return a.value - b.value;
       default:
         return 0;
     }
   });
 
+  // 6. Jika tidak ada hasil
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria.</div>`;
+    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria pencarian.</div>`;
     return;
   }
 
-  // 4. Tampilkan kartu pemain
+  // 7. Render Kartu Pemain
   filtered.forEach(p => {
     const card = document.createElement('div');
     card.className = 'bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-500 transition shadow-lg';
