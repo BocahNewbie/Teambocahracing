@@ -1003,17 +1003,17 @@ function renderTransferMarket() {
   if (!container) return;
   container.innerHTML = '';
 
-  // 1. Ambil nilai dari kedua dropdown filter
+  // 1. Ambil nilai filter posisi dan filter pengurutan
   const posFilter = document.getElementById('market-pos-filter')?.value || 'ALL';
   const sortFilter = document.getElementById('market-sort-filter')?.value || 'none';
 
-  // 2. Filter berdasarkan Posisi (misal: Outside Hitter)
+  // 2. Saring pemain berdasarkan posisi
   let filtered = gameState.marketPlayers.filter(p => {
     if (posFilter !== 'ALL' && p.position !== posFilter) return false;
     return true;
   });
 
-  // 3. Urutkan hasil filter posisi berdasarkan parameter pilihan (misal: Gaji Tinggi ke Rendah)
+  // 3. Urutkan hasil saringan berdasarkan opsi sort yang dipilih
   filtered.sort((a, b) => {
     switch (sortFilter) {
       case 'ovr-desc':
@@ -1025,7 +1025,7 @@ function renderTransferMarket() {
       case 'price-asc':
         return a.value - b.value;
       case 'salary-desc':
-        return b.salary - a.salary; // Gaji Tinggi ke Rendah
+        return b.salary - a.salary;
       case 'salary-asc':
         return a.salary - b.salary;
       default:
@@ -1033,13 +1033,12 @@ function renderTransferMarket() {
     }
   });
 
-  // 4. Jika hasil kombinasi kosong
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria pencarian.</div>`;
+    container.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12">Tidak ada pemain yang sesuai dengan kriteria.</div>`;
     return;
   }
 
-  // 5. Render daftar pemain ke tampilan
+  // 4. Tampilkan kartu pemain
   filtered.forEach(p => {
     const card = document.createElement('div');
     card.className = 'bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-500 transition shadow-lg';
